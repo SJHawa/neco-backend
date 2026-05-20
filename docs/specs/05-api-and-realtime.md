@@ -84,7 +84,7 @@ Error:
 - `AiChatRequestStatus`: `RECEIVED`, `COMPLETED`, `FAILED`
 - `AiChatMessageSenderType`: `USER`, `ASSISTANT`, `SYSTEM`
 - `AiChatMessageType`: `TEXT`, `COMMAND_RESULT`, `SYSTEM_NOTICE`
-- `AiRealtimeEventType`: `SYSTEM_NOTIFICATION`, `HINT_POPUP`, `DEBUG_SUMMARY`, `MISSION_FEEDBACK`, `MISSION_RESULT`
+- `AiRealtimeEventType`: `SYSTEM_NOTIFICATION`, `MISSION_FEEDBACK`, `MISSION_RESULT`
 
 ## Key Endpoint Categories
 

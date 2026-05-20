@@ -1,6 +1,6 @@
-# Open Questions to Backend
+# Open Questions from frontend
 
-백엔드와 협의하여 결정된 사항을 정리합니다.
+프론트엔드 개발자와 협의하여 결정된 사항을 정리합니다.
 
 ---
 
@@ -14,7 +14,7 @@ v1.2 명세에는 AI chat session 생성 API가 없다.
 회원가입 API 처리 시 서버가 AI chat session을 자동으로 생성한다.
 
 **백엔드 작업 내용**
-- `POST /auth/register` 처리 시 해당 유저의 AI chat session을 자동 생성한다.
+- `POST /v1/auth/signup` 처리 시 해당 유저의 AI chat session을 자동 생성한다.
 
 ---
 
@@ -95,5 +95,5 @@ v1.2에서는 `clientAction`이 제거되어 body가 `message`만 있다.
 서버는 별도의 hashing을 수행하지 않는다. 프론트엔드에서 SHA-256으로 해시하여 전송한다. (HTTPS 전제)
 
 **백엔드 작업 내용**
-- `POST /auth/register` 및 `POST /auth/login`에서 수신한 `passwordHash` 값을 그대로 사용한다 (서버 측 추가 hashing 없음).
+- `POST /v1/auth/signup` 및 `POST /v1/auth/login`에서 수신한 `passwordHash` 값을 그대로 사용한다 (서버 측 추가 hashing 없음).
 - API 명세에 `passwordHash`가 SHA-256 hex string임을 명시한다.

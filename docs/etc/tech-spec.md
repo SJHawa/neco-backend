@@ -360,6 +360,7 @@ NestJS Server
 - 로그인
 - access token 발급
 - refresh token 재발급
+- 회원가입 성공 시 AI chat session 자동 생성
 
 주요 유스케이스:
 
@@ -622,7 +623,7 @@ ai_game_sessions
 
 ### 7.5 영속 저장과 비영속 상태 분리
 
-- 실시간 코드 변경 델타: 비영속 또는 캐시성 상태
+- 실시간 파일별 최신 `content`: 비영속 또는 캐시성 상태
 - 턴 종료 스냅샷: 영속 저장
 - 컨테이너 실행 로그 전문: 필요 시 길이 제한 또는 별도 저장소 확장 가능
 - AI 메시지 로그: 재현성과 디버깅을 위해 저장
@@ -775,14 +776,15 @@ ai_game_sessions
 8. 첫 턴 생성
 9. 방 상태를 `IN_PROGRESS`로 변경
 10. `game-started`, `game-state-updated` 브로드캐스트
+11. `missionState.projectStructure.files[*].fileUrl`을 포함해 초기 에디터 파일 로딩 정보를 전달
 
 ### 9.5 코드 동기화 파이프라인
 
 실시간 코드 변경은 WebSocket 기반으로만 전파한다.
 
 1. 현재 턴 사용자만 편집 가능
-2. `code-change` 이벤트로 변경 델타 전송
-3. 서버는 룸의 다른 참가자에게 `code-updated` 브로드캐스트
+2. `code-change` 이벤트로 파일 전체 `content` 전송
+3. 서버는 룸의 다른 참가자에게 파일 전체 `content`를 담은 `code-updated` 브로드캐스트
 4. 이 데이터는 협업용이며 곧바로 DB에 저장하지 않는다.
 
 저장 기준:
@@ -815,7 +817,7 @@ ai_game_sessions
 처리 규칙(확정):
 
 1. 서버가 `deadlineAt` 도달을 감지하면 자동 제출과 동일한 흐름으로 처리한다.
-2. Gateway가 마지막으로 수신한 `code-change` 델타를 누적해 둔 in-memory 버퍼를 기준으로 코드 스냅샷을 만든다.
+2. Gateway가 마지막으로 수신한 파일별 전체 `content`를 보관한 in-memory 버퍼를 기준으로 코드 스냅샷을 만든다.
 3. `turn_snapshots`에 저장하고 `turns.status = TIMEOUT`으로 변경한다.
 4. 이후 실행 요청 → 판정 → `turn-evaluated` 브로드캐스트로 자동 제출과 동일하게 진행한다.
 
@@ -1318,8 +1320,8 @@ MVP에서는 재접속을 지원하지 않는다.
 #### 16.9.3 실시간 코드 동기화 방식
 
 - Yjs / CRDT를 사용하지 않는다.
-- `code-change` 이벤트는 단순 delta payload로 전송하고, 서버는 받은 delta를 그대로 같은 룸의 다른 클라이언트에게 fan-out 한다.
-- 서버는 현재 턴 사용자의 in-memory delta 버퍼(룸 단위 Map)에 누적한 뒤, 턴 제출 또는 타임아웃 시점에 스냅샷으로 저장한다.
+- `code-change` 이벤트는 파일 전체 `content` payload로 전송하고, 서버는 받은 `content`를 그대로 같은 룸의 다른 클라이언트에게 fan-out 한다.
+- 서버는 현재 턴 사용자의 파일별 최신 `content`를 in-memory 버퍼(룸 단위 Map)에 보관한 뒤, 턴 제출 또는 타임아웃 시점에 스냅샷으로 저장한다.
 - 현재 턴 사용자가 아닌 클라이언트가 보낸 `code-change`는 서버가 무시한다.
 
 #### 16.9.4 Docker 실행 모델

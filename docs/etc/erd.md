@@ -247,7 +247,7 @@ Table ai_realtime_events {
   ai_game_request_id uuid [not null]
   ai_game_session_id uuid [not null]
   game_room_id uuid [not null, note: '외부 GameRoom 서버의 gameRoomId']
-  event_type text [not null, note: 'SYSTEM_NOTIFICATION, HINT_POPUP, DEBUG_SUMMARY, MISSION_FEEDBACK, MISSION_RESULT']
+  event_type text [not null, note: 'SYSTEM_NOTIFICATION, MISSION_FEEDBACK, MISSION_RESULT']
   target_user_id uuid [note: '외부 Auth 서버의 userId']
   message text [not null]
   payload_json jsonb [note: 'missionResult 등 브로드캐스트 payload']
