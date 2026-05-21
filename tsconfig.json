@@ -24,5 +24,6 @@
       "@shared/*": ["./src/shared/*"],
       "@modules/*": ["./src/modules/*"]
     }
-  }
+  },
+  "include": ["src/**/*.ts"]
 }
