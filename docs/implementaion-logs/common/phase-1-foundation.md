@@ -95,5 +95,103 @@
 - 새 도메인 모듈 구현 시 `src/modules/{module-name}/{module-name}.module.ts` 스텁에 imports/providers/exports를 추가하면 됨.
 - 새 모듈을 앱에 등록하려면 `src/app.module.ts`의 `imports` 배열에 추가할 것.
 - 마이그레이션 생성: `pnpm migration:generate -- database/migrations/<MigrationName>` 실행.
-- ESLint 미설정 상태. `pnpm lint` 스크립트는 준비되어 있으나 C2에서 eslint 패키지 추가가 필요함.
+- ~~ESLint 미설정 상태~~ → C2에서 ESLint 10 flat config 설정 완료. `pnpm lint` 사용 가능.
 - 실제 Docker Compose 실행 시 `.env.example`을 `.env`로 복사하고 시크릿 값을 채워야 함.
+
+---
+
+## [2026-05-21] C2: 공유 계약 및 퍼시스턴스 규약 확립
+
+**Plan reference:** `docs/plans/common-sequential-plan.md`
+
+**Summary:**
+- API 응답 래퍼(RequestId + `{ data, meta, error }` 형식), 전역 예외 필터, 전체 도메인 Enum, BaseEntity, Asia/Seoul 타임스탬프 유틸, ESLint 설정을 확립했습니다.
+
+**Dependencies reviewed before starting:**
+- `docs/plans/common-sequential-plan.md` — Task C2 acceptance criteria
+- `docs/specs/05-api-and-realtime.md` — 응답 래퍼 형식, 도메인 Enum 목록
+- `docs/specs/04-data-model.md` — 상태값 저장 규약, Enum 정의, BaseEntity 설계 기준
+- `docs/specs/03-modules.md` — common/shared 레이어 책임 범위
+- `docs/implementaion-logs/common/phase-1-foundation.md` (C1 로그) — ESLint 미설정 open question 확인
+
+**Implementation details:**
+
+- **`src/shared/enums/`**: 스펙 정의 전체 Enum을 5개 파일로 분리. 파일별 책임:
+  - `game-room.enum.ts`: `GameRoomStatus`, `GameRoomParticipantMembershipStatus`, `GameRoomParticipantRole`
+  - `turn.enum.ts`: `TurnStatus`
+  - `mission.enum.ts`: `GameRoomMissionStepStatus`
+  - `execution.enum.ts`: `ExecutionStatus`
+  - `ai-chat.enum.ts`: `AiChatRequestType`, `AiChatRequestStatus`, `AiChatMessageSenderType`, `AiChatMessageType`, `AiRealtimeEventType`
+  - `index.ts`: barrel export
+- **`src/common/types/api-response.type.ts`**: `ApiMeta`, `ApiError`, `ApiResponse<T>` 인터페이스 정의. 스펙의 `{ data, meta: { requestId }, error }` 형식과 일치.
+- **`src/common/interceptors/response.interceptor.ts`**: 요청마다 UUID requestId 생성 → request 객체에 주입 → 성공 응답을 `ApiResponse` 형식으로 래핑. `@types/express` v5 breaking change(`StatusCode` 타입) 우회를 위해 NestJS `getRequest<{ requestId?: string }>()` 제네릭 방식 사용.
+- **`src/common/filters/http-exception.filter.ts`**: 모든 예외를 `ApiResponse` 에러 형식으로 통일. ValidationPipe 배열 메시지 정규화, 도메인 커스텀 `code` 우선 적용, `HttpStatus` 역방향 조회로 errorCode 파생. `getResponse<any>()`로 @types/express v5 StatusCode 타입 이슈 우회.
+- **`src/database/base.entity.ts`**: TypeORM `@PrimaryGeneratedColumn('uuid')` + `@CreateDateColumn` / `@UpdateDateColumn` (`timestamptz`) abstract class. `!` 단언 사용(`strictPropertyInitialization` 우회, TypeORM이 런타임에 주입).
+- **`src/common/utils/date.util.ts`**: `toSeoulIso(date: Date): string` — `Intl.DateTimeFormat` 기반 Asia/Seoul ISO 8601 직렬화 유틸. Worker 응답 DTO/매퍼에서 타임스탬프 직렬화 시 반드시 사용.
+- **`src/main.ts`**: `app.setGlobalPrefix('v1')` 추가, `AllExceptionsFilter` → `ResponseInterceptor` → `ValidationPipe` 순서로 전역 등록.
+- **`eslint.config.js`**: ESLint 10 flat config. `@typescript-eslint/recommended` 기반, `src/**/*.ts` 대상. `pnpm lint` 명령 동작 확인.
+
+**Files changed:**
+- `src/shared/enums/game-room.enum.ts` (신규)
+- `src/shared/enums/turn.enum.ts` (신규)
+- `src/shared/enums/mission.enum.ts` (신규)
+- `src/shared/enums/execution.enum.ts` (신규)
+- `src/shared/enums/ai-chat.enum.ts` (신규)
+- `src/shared/enums/index.ts` (신규)
+- `src/common/types/api-response.type.ts` (신규)
+- `src/common/interceptors/response.interceptor.ts` (신규)
+- `src/common/filters/http-exception.filter.ts` (신규)
+- `src/common/utils/date.util.ts` (신규)
+- `src/database/base.entity.ts` (신규)
+- `src/common/index.ts` (수정 — 새 exports 추가)
+- `src/main.ts` (수정 — v1 prefix, 전역 필터/인터셉터 등록)
+- `eslint.config.js` (신규)
+- `package.json` (수정 — eslint, @typescript-eslint devDeps 추가, lint script 업데이트)
+- `pnpm-lock.yaml` (수정)
+
+**Verification:**
+- [x] `pnpm typecheck` — 통과
+- [x] `pnpm build` — 통과
+- [x] `pnpm lint` — 통과 (경고 없음)
+- [x] Enum 값이 스펙과 정확히 일치하는지 육안 검증
+- [x] GPT 5.4 서브에이전트 코드 리뷰 수행 — P1(`/v1` prefix 누락) 및 P2 이슈(예외 필터 배열 메시지 처리) 피드백 반영 완료
+- [ ] 실제 DB 연결 통합 테스트 — DB 미실행 환경, C3 이후 Worker 구현 시 검증 예정
+
+**Commit:**
+- `9d28746` feat(common): Task C2 - 공유 계약 및 퍼시스턴스 규약 확립
+
+**Impact on next tasks:**
+- **Worker-1, Worker-2, Worker-3 진입 가능**: 공유 Enum, ApiResponse 타입, BaseEntity, ESLint 모두 준비됨.
+- **공유 계약 체크포인트 충족**: C1-C2 완료, 세 Worker 스트림 독립 진행 가능 상태.
+- 모든 Entity는 `BaseEntity`를 extend하여 uuid pk, `created_at`, `updated_at` 자동 관리.
+- 모든 응답 DTO/매퍼에서 타임스탬프 필드는 `toSeoulIso()` 유틸로 직렬화해야 함.
+
+**Design decisions made:**
+- **`@types/express` v5 StatusCode 우회**: `Response<any>` 대신 `getResponse<any>()`를 사용. v5에서 `Response.status()`가 `StatusCode` 리터럴 유니언 타입을 요구하는 breaking change 대응. `HttpStatus`의 숫자값을 그대로 넘기면 타입 오류 발생.
+- **requestId 전파 방식**: 서비스 계층 전파는 AsyncLocalStorage/CLS 기반이 이상적이지만, MVP 범위에서는 request 객체 주입으로 충분하다고 판단. 필요 시 Worker 스트림에서 CLS로 확장 가능.
+- **deriveErrorCode**: `HttpStatus` enum의 역방향 조회(`Object.entries`)로 HTTP 상태 코드 → 에러 코드 문자열 파생. 커스텀 코드가 있으면 커스텀 우선.
+
+**Deviations from spec:**
+- 없음. 모든 Enum 값, 응답 형식이 스펙과 정확히 일치함.
+
+**Trade-offs:**
+- **requestId 전파 단순화**: 현재 request 객체 주입 방식은 HTTP 컨텍스트에서만 작동. 비동기 이벤트, WebSocket, 메시지 큐 컨텍스트에서는 별도 처리 필요. CLS(cls-hooked/AsyncLocalStorage) 도입은 Worker 스트림 착수 후 필요 시점에 결정.
+- **Intl.DateTimeFormat 기반 Asia/Seoul 직렬화**: Node.js 내장 API 사용으로 외부 의존성 없음. 단, 밀리초(`.000`) 포함 여부와 포맷 정확도는 통합 테스트에서 확인 필요.
+
+**Open questions:**
+- [x] ESLint 설정 C2에서 추가하는가? → Yes, 완료.
+- [ ] requestId를 서비스/로거 계층까지 전파할 필요가 있는가? → Worker 구현 진행 후 필요 시 AsyncLocalStorage 기반 CLS로 확장 결정.
+- [ ] `toSeoulIso()` 유틸의 밀리초 포함 여부 — 프론트엔드 파싱 규약 확인 필요.
+
+**Open risks or follow-ups:**
+- Worker 스트림이 응답 DTO에서 Date 직렬화 시 `toSeoulIso()` 유틸을 빠뜨릴 위험 있음. class-transformer `@Transform` 데코레이터와 연계하는 가이드를 Worker 착수 전 공유 권장.
+- `@types/express` v5 마이그레이션 상황에 따라 `getResponse<any>()` 우회 방식을 올바른 `StatusCode` 캐스팅으로 개선 가능.
+
+**Instructions for the next worker:**
+- Enum 사용 시 `src/shared/enums`에서 import (`@shared/enums` path alias 또는 상대경로).
+- API 응답 DTO는 `ApiResponse<T>` 타입을 참조. 컨트롤러에서 직접 데이터 객체만 반환하면 `ResponseInterceptor`가 자동 래핑.
+- 커스텀 HTTP 예외 생성 시 `new HttpException({ code: 'DOMAIN_ERROR_CODE', message: '...' }, HttpStatus.XXX)` 형식 사용 — `code` 필드가 응답 `error.code`로 전달됨.
+- 새 Entity는 `src/database/base.entity.ts`의 `BaseEntity`를 extend하여 id/createdAt/updatedAt 자동 포함.
+- 타임스탬프 응답 직렬화는 반드시 `toSeoulIso(date)` 유틸 사용 (`@common/utils/date.util` 또는 `@common`).
+- 모든 HTTP 라우트는 `/v1` 프리픽스가 자동 적용됨 (`main.ts`의 `setGlobalPrefix('v1')`).
+- 마이그레이션 생성: `pnpm migration:generate -- database/migrations/<MigrationName>`.
