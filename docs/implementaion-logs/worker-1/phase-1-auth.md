@@ -89,3 +89,99 @@
 - 인증 예외 라우트: `auth/check-nickname`, `auth/signup`, `auth/login`, `auth/refresh-token`만 public.
 - 커스텀 도메인 에러는 `throwAuthError` / `HttpException({ code, message }, status)` 패턴 유지.
 - 타임스탬프 응답은 `toSeoulIso()` 사용.
+
+## [2026-05-22] W1-2: Implement AI chat session read and message write flow
+
+**Plan reference:** `docs/plans/worker-1-auth-and-ai-chat-plan.md`
+
+**Summary:**
+- AI chat 세션 목록·메시지 조회 및 메시지 POST API 3개를 구현했습니다.
+- 전역 `JwtAuthGuard` + `@Public()`로 auth 4개 라우트를 제외한 Bearer 인증을 적용했습니다.
+- `ai_chat_requests` / `ai_chat_messages` 마이그레이션·엔티티·트랜잭션 기반 메시지·요청 이력 저장을 추가했습니다.
+- W1-3 전 POST는 `requestStatus: RECEIVED`이며 `requestType`을 생략합니다. DB에는 `UNPARSED` 내부 상수만 저장합니다.
+- 3차 리뷰까지 반영해 `docs/etc/api-spec.md` §9·`docs/specs/05-api-and-realtime.md`에 RECEIVED 시 `requestType` 생략 계약을 명시했습니다.
+
+**Dependencies reviewed before starting:**
+- `docs/implementaion-logs/README.md`
+- `docs/implementaion-logs/worker-1/phase-1-auth.md` — Task W1-1 (open questions 확인)
+- `docs/plans/worker-1-auth-and-ai-chat-plan.md` — Task W1-2
+- `docs/specs/05-api-and-realtime.md`, `04-data-model.md`, `03-modules.md`, `08-security-testing-and-delivery.md`
+- `docs/etc/api-spec.md` — §5 GET ai-chat-sessions, §8 GET messages, §9 POST messages
+
+**Implementation details:**
+- **`src/common/guards/jwt-auth.guard.ts`**: `Authorization: Bearer` 검증, `@Public()` 스킵, `request.user`에 `userId`/`loginId` 설정. 만료 시 `AUTH_TOKEN_EXPIRED`, 그 외 `AUTH_TOKEN_INVALID`.
+- **`src/modules/ai-chat-sessions/`**: `AiChatSessionsController`·`AiChatSessionsService`, DTO, `AI_CHAT_ERROR` / `AI_CHAT_REQUEST_TYPE_UNPARSED`(DB 전용).
+- **`GET /v1/ai-chat-sessions`**: `requesterUserId = currentUser` 필터, optional `gameRoomId`/`userId`. 타인 `userId` → `403 FORBIDDEN_RESOURCE_ACCESS`. 세션 없으면 `[]`.
+- **`GET .../messages`**: 소유 세션만 조회, 미소유/미존재 → `404 AI_CHAT_SESSION_NOT_FOUND`, 메시지 없으면 `[]`, `created_at` ASC.
+- **`POST .../messages`**: 트랜잭션에서 request(`UNPARSED`, `RECEIVED`) → user `TEXT` → assistant `SYSTEM_NOTICE` → `source_message_id` FK 대상 설정. 응답은 api-spec §9 RECEIVED 예시 형태(`requestType` 생략, `commandResult: null`).
+- **`database/migrations/1747843300000-AiChatRequestsAndMessages.ts`**: `ai_chat_requests`, `ai_chat_messages` 생성 후 `source_message_id` → `ai_chat_messages.id` FK(`ON DELETE SET NULL`), `(ai_chat_session_id, created_at)` 인덱스.
+- **`src/app.module.ts`**: `AiChatSessionsModule` 등록, `APP_GUARD`로 `JwtAuthGuard` 적용.
+
+**Files changed:**
+- `database/migrations/1747843300000-AiChatRequestsAndMessages.ts`
+- `docs/etc/api-spec.md`
+- `docs/specs/05-api-and-realtime.md`
+- `src/app.module.ts`
+- `src/common/decorators/current-user.decorator.ts`
+- `src/common/decorators/public.decorator.ts`
+- `src/common/guards/jwt-auth.guard.ts`
+- `src/common/guards/jwt-auth.guard.spec.ts`
+- `src/common/types/authenticated-user.type.ts`
+- `src/modules/ai-chat-sessions/ai-chat-sessions.module.ts`
+- `src/modules/ai-chat-sessions/ai-chat-sessions.service.ts`
+- `src/modules/ai-chat-sessions/ai-chat-sessions.service.spec.ts`
+- `src/modules/ai-chat-sessions/constants/ai-chat-error.constants.ts`
+- `src/modules/ai-chat-sessions/constants/ai-chat-internal.constants.ts`
+- `src/modules/ai-chat-sessions/controller/ai-chat-sessions.controller.ts`
+- `src/modules/ai-chat-sessions/dto/create-ai-chat-message.dto.ts`
+- `src/modules/ai-chat-sessions/dto/list-ai-chat-sessions-query.dto.ts`
+- `src/modules/ai-chat-sessions/entity/ai-chat-message.entity.ts`
+- `src/modules/ai-chat-sessions/entity/ai-chat-request.entity.ts`
+- `src/modules/auth/controller/auth.controller.ts` (`@Public()`)
+- `src/shared/enums/ai-chat.enum.ts` (`AiChatSessionStatus` 추가)
+
+**Verification:**
+- [x] `pnpm typecheck` — 통과
+- [x] `pnpm lint` — 통과
+- [x] `pnpm build` — 통과
+- [x] `pnpm test` — 29 tests 통과 (ai-chat-sessions 12, jwt-auth.guard 4, auth 13, jwt-token 4)
+- [x] 3차 리뷰: POST `RECEIVED` 시 `requestType` 생략 계약을 api-spec·05 스펙에 반영 후 테스트·구현 정합
+- [ ] `pnpm migration:run` — 로컬 Postgres 미기동으로 미실행
+- [ ] HTTP 수동 스모크 — DB 미연결로 미실행
+
+**Commit:**
+- `4f721e0` feat(ai-chat): Task W1-2 AI 채팅 세션 조회·메시지 저장 API 구현
+
+**Impact on next tasks:**
+- **Task W1-3 진입 가능**: `AiChatRequest`/`AiChatMessage` 테이블·POST 트랜잭션 골격·JWT 가드 준비됨. W1-3는 `AI_CHAT_REQUEST_TYPE_UNPARSED` row를 파싱 후 공식 5종 `requestType` + `COMPLETED`/`FAILED` + `commandResult`로 갱신하면 됨.
+- **스펙**: POST 성공 응답은 `RECEIVED`(무 `requestType`) vs `COMPLETED`/`FAILED`(필수 `requestType`) 구분이 문서화됨. W1-3 구현 시 §9 예시·05 규칙을 따를 것.
+- **의존 서비스**: room/participant mutation은 W1-3 이후 downstream 호출. W1-2는 persistence·API만 담당.
+
+**Design decisions made:**
+- **전역 JWT guard**: 스펙상 auth 4개만 public. `@Public()` 메타데이터로 예외 처리.
+- **DB `UNPARSED` vs API `requestType` 분리**: 공용 `AiChatRequestType` enum 5종 유지. 미해석 상태는 모듈 내부 상수만 DB에 저장하고 API에는 노출하지 않음.
+- **POST W1-2 중립 응답**: `RECEIVED` + `requestType` 생략 + `commandResult: null`로 프론트 명령 UI 오동작 방지. assistant는 `SYSTEM_NOTICE` + `intentParsingPending` metadata.
+- **`source_message_id` FK**: ERD 링크 무결성. messages 테이블 생성 후 ALTER로 순환 FK 해결.
+
+**Deviations from spec:**
+- 없음(3차 리뷰에서 `RECEIVED` 시 `requestType` 생략을 `docs/etc/api-spec.md` §9·`docs/specs/05-api-and-realtime.md`에 선행 반영).
+
+**Trade-offs:**
+- **Intent parsing 미구현**: W1-2 POST는 저장·중립 응답만. LLM·command DTO·`commandResult` 채움은 W1-3.
+- **단일 amend 커밋**: 리뷰 1~3차 수정을 `4f721e0` 하나에 포함. 작업/로그 커밋은 분리.
+
+**Open questions:**
+- [x] W1-1 “Auth guard W1-2에서 추가” → W1-2에서 `JwtAuthGuard` 구현 완료.
+- [ ] C2 `requestId` 서비스/로거 전파 — W1-2에서 interceptor UUID만 사용, 후속 가능.
+- [ ] C2 `toSeoulIso()` 밀리초 포함 여부 — W1-2 응답에도 동일 적용, 프론트 규약 확인은 후속.
+
+**Open risks or follow-ups:**
+- `pnpm migration:run` + ai-chat HTTP integration test는 Postgres 기동 후 1회 권장(두 마이그레이션 순서: `1747843200000` → `1747843300000`).
+- W1-3에서 `UNPARSED` → 파싱된 `request_type` 갱신 시 기존 RECEIVED row 처리 규칙을 서비스 레이어에 명시할 것.
+
+**Instructions for the next worker:**
+- W1-3 착수 전 `docs/etc/api-spec.md` §9 POST·`docs/specs/07-integrations-and-ai.md` LLM 경계를 읽을 것.
+- `AI_CHAT_REQUEST_TYPE_UNPARSED`는 `ai-chat-internal.constants.ts`에만 두고 API enum에 다시 넣지 말 것.
+- 파싱 성공 시 `requestStatus`/`requestType`/`commandResult`를 api-spec §9 COMPLETED 예시와 맞출 것.
+- 소유권·에러 패턴: `requireOwnedSession`, `throwAiChatError`, `throwForbiddenAccess` 재사용.
+- `JwtAuthGuard`·`toSeoulIso()`·응답 wrapper는 그대로 유지.
