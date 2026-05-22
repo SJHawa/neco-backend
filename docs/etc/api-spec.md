@@ -744,7 +744,8 @@ AI 채팅 메시지 목록을 조회한다.
 - `message`: string (required)
 
 ### 응답 해석 규칙
-- `requestType`은 서버가 해석한 사용자 의도다.
+- `requestType`은 서버가 **해석을 완료한 뒤** 내려주는 사용자 의도다. `requestStatus = RECEIVED`이면 아직 해석 전이므로 `requestType`을 포함하지 않는다.
+- `requestStatus = COMPLETED` 또는 `FAILED`이면 `requestType`은 필수이며, 아래 5종 중 하나여야 한다.
 - `commandResult.apiPath`는 실제 후속 도메인 API path다.
 - `commandResult.status = PENDING`이면 아직 최종 실행 전이다.
 - `commandResult.status = SUCCESS`이면 해당 단계의 실행이 완료된 상태다.
@@ -761,7 +762,7 @@ AI 채팅 메시지 목록을 조회한다.
 #### Success Schema
 - `data`: object
   - `aiChatRequestId`: string
-  - `requestType`: `ROOM_CREATE` | `USER_INVITE` | `ROOM_JOIN` | `USER_INVITE_DENY` | `GAME_START`
+  - `requestType`: `ROOM_CREATE` | `USER_INVITE` | `ROOM_JOIN` | `USER_INVITE_DENY` | `GAME_START` (required when `requestStatus` is `COMPLETED` or `FAILED`; omitted when `requestStatus` is `RECEIVED`)
   - `requestStatus`: `RECEIVED` | `COMPLETED` | `FAILED`
   - `userMessage`: object
     - `messageId`: string
@@ -789,6 +790,41 @@ AI 채팅 메시지 목록을 조회한다.
 - `meta`: object
   - `requestId`: string
 - `error`: null
+
+#### Example - RECEIVED (intent not parsed yet)
+```json
+{
+  "data": {
+    "aiChatRequestId": "550e8400-e29b-41d4-a716-446655440210",
+    "requestStatus": "RECEIVED",
+    "userMessage": {
+      "messageId": "550e8400-e29b-41d4-a716-446655440130",
+      "aiChatRequestId": "550e8400-e29b-41d4-a716-446655440210",
+      "senderType": "USER",
+      "messageType": "TEXT",
+      "content": "방 만들어줘",
+      "metadata": null,
+      "createdAt": "2026-05-04T09:11:00+09:00"
+    },
+    "assistantMessage": {
+      "messageId": "550e8400-e29b-41d4-a716-446655440131",
+      "aiChatRequestId": "550e8400-e29b-41d4-a716-446655440210",
+      "senderType": "ASSISTANT",
+      "messageType": "SYSTEM_NOTICE",
+      "content": "메시지를 저장했습니다. 명령 해석이 완료되면 안내해 드릴게요.",
+      "metadata": {
+        "intentParsingPending": true
+      },
+      "createdAt": "2026-05-04T09:11:01+09:00"
+    },
+    "commandResult": null
+  },
+  "meta": {
+    "requestId": "6f1d7e14-6d74-4c74-97b1-6ef7a7df2010"
+  },
+  "error": null
+}
+```
 
 #### Example - ROOM_CREATE
 ```json
@@ -965,8 +1001,9 @@ AI 채팅 메시지 목록을 조회한다.
 
 ### Frontend Handling
 1. 사용자 입력을 채팅 메시지로 보낸다.
-2. `requestType`, `commandResult.status`, `commandResult.apiPath`, `assistantMessage.metadata`를 기준으로 다음 UI를 결정한다.
-3. 방 생성 또는 참가 완료 후에는 게임방 및 WebSocket 이벤트 중심으로 상태를 갱신한다.
+2. `requestStatus = RECEIVED`이고 `requestType`이 없으면 명령 UI로 진행하지 않고 저장·안내 메시지만 표시한다.
+3. `requestStatus`가 `COMPLETED` 또는 `FAILED`이면 `requestType`, `commandResult.status`, `commandResult.apiPath`, `assistantMessage.metadata`를 기준으로 다음 UI를 결정한다.
+4. 방 생성 또는 참가 완료 후에는 게임방 및 WebSocket 이벤트 중심으로 상태를 갱신한다.
 
 ---
 
