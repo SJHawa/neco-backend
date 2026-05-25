@@ -53,6 +53,47 @@ const ALLOWED_MEMBERSHIP_TRANSITIONS: Record<
 export class GameRoomParticipantsService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async listParticipantsForUser(
+    userId: string,
+  ): Promise<GameRoomParticipantEntity[]> {
+    const participantRepository = this.dataSource.getRepository(
+      GameRoomParticipantEntity,
+    );
+    const accessibleMemberships = await participantRepository.find({
+      relations: { gameRoom: true },
+      where: {
+        userId,
+        membershipStatus: In([
+          GameRoomParticipantMembershipStatus.INVITED,
+          GameRoomParticipantMembershipStatus.JOINED,
+        ]),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+
+    const accessibleGameRoomIds = [
+      ...new Set(
+        accessibleMemberships.map((membership) => membership.gameRoomId),
+      ),
+    ];
+
+    if (accessibleGameRoomIds.length === 0) {
+      return [];
+    }
+
+    return participantRepository.find({
+      relations: { gameRoom: true },
+      where: {
+        gameRoomId: In(accessibleGameRoomIds),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+  }
+
   async inviteParticipant(
     input: InviteParticipantInput,
   ): Promise<GameRoomParticipantEntity> {

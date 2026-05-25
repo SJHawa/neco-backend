@@ -1,6 +1,6 @@
 /// <reference types="jest" />
 
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { GameRoomEntity } from '@modules/game-rooms/entity/game-room.entity';
 import { GameRoomParticipantsService } from './game-room-participants.service';
 import { GameRoomParticipantEntity } from '../entity/game-room-participant.entity';
@@ -17,7 +17,7 @@ describe('GameRoomParticipantsService', () => {
   >;
   let roomRepository: jest.Mocked<Pick<Repository<GameRoomEntity>, 'findOne'>>;
   let manager: { getRepository: jest.Mock; query: jest.Mock };
-  let dataSource: { transaction: jest.Mock };
+  let dataSource: { transaction: jest.Mock; getRepository: jest.Mock };
 
   beforeEach(() => {
     participantRepository = {
@@ -44,9 +44,87 @@ describe('GameRoomParticipantsService', () => {
 
     dataSource = {
       transaction: jest.fn(async (callback) => callback(manager)),
+      getRepository: jest.fn(() => participantRepository),
     };
 
     service = new GameRoomParticipantsService(dataSource as never);
+  });
+
+  it('lists participant state only for rooms accessible to the authenticated user', async () => {
+    participantRepository.find
+      .mockResolvedValueOnce([
+        {
+          id: 'membership-1',
+          gameRoomId: 'room-1',
+          userId: 'owner-1',
+          membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+          gameRoom: {
+            id: 'room-1',
+            status: GameRoomStatus.WAITING,
+          },
+        } as GameRoomParticipantEntity,
+      ])
+      .mockResolvedValueOnce([
+        {
+          id: 'participant-1',
+          gameRoomId: 'room-1',
+          userId: 'owner-1',
+          membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+          role: GameRoomParticipantRole.OWNER,
+          gameRoom: {
+            id: 'room-1',
+            status: GameRoomStatus.WAITING,
+          },
+        } as GameRoomParticipantEntity,
+        {
+          id: 'participant-2',
+          gameRoomId: 'room-1',
+          userId: 'invitee-1',
+          membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
+          role: GameRoomParticipantRole.PARTICIPANT,
+          gameRoom: {
+            id: 'room-1',
+            status: GameRoomStatus.WAITING,
+          },
+        } as GameRoomParticipantEntity,
+      ]);
+
+    const result = await service.listParticipantsForUser('owner-1');
+
+    expect(dataSource.getRepository).toHaveBeenCalledWith(GameRoomParticipantEntity);
+    expect(participantRepository.find).toHaveBeenNthCalledWith(1, {
+      relations: { gameRoom: true },
+      where: {
+        userId: 'owner-1',
+        membershipStatus: In([
+          GameRoomParticipantMembershipStatus.INVITED,
+          GameRoomParticipantMembershipStatus.JOINED,
+        ]),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+    expect(participantRepository.find).toHaveBeenNthCalledWith(2, {
+      relations: { gameRoom: true },
+      where: {
+        gameRoomId: In(['room-1']),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+    expect(result.map((participant) => participant.id)).toEqual([
+      'participant-1',
+      'participant-2',
+    ]);
+  });
+
+  it('returns an empty participant list when the authenticated user has no accessible room', async () => {
+    participantRepository.find.mockResolvedValueOnce([]);
+
+    await expect(service.listParticipantsForUser('owner-1')).resolves.toEqual([]);
+    expect(participantRepository.find).toHaveBeenCalledTimes(1);
   });
 
   it('allows only the room owner to invite participants', async () => {

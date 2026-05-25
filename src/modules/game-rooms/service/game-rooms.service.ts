@@ -21,6 +21,30 @@ export interface CreateGameRoomInput {
 export class GameRoomsService {
   constructor(private readonly dataSource: DataSource) {}
 
+  async listAccessibleRooms(userId: string): Promise<GameRoomEntity[]> {
+    const participantRepository = this.dataSource.getRepository(
+      GameRoomParticipantEntity,
+    );
+    const accessibleMemberships = await participantRepository.find({
+      relations: { gameRoom: true },
+      where: {
+        userId,
+        membershipStatus: In([
+          GameRoomParticipantMembershipStatus.INVITED,
+          GameRoomParticipantMembershipStatus.JOINED,
+        ]),
+      },
+      order: {
+        createdAt: 'ASC',
+      },
+    });
+
+    const accessibleRooms = accessibleMemberships.map(
+      (membership) => membership.gameRoom,
+    );
+    return accessibleRooms;
+  }
+
   async createRoom(input: CreateGameRoomInput): Promise<GameRoomEntity> {
     return this.dataSource.transaction(async (manager) => {
       const roomRepository = manager.getRepository(GameRoomEntity);
