@@ -1,6 +1,7 @@
 /// <reference types="jest" />
 
 import { DataSource, In, Repository } from 'typeorm';
+import { GameRoomMissionsService } from '@modules/game-room-missions/service/game-room-missions.service';
 import { GameRoomParticipantEntity } from '@modules/game-room-participants/entity/game-room-participant.entity';
 import { GameRoomsService } from './game-rooms.service';
 import { GameRoomEntity } from '../entity/game-room.entity';
@@ -12,9 +13,17 @@ import {
 
 describe('GameRoomsService', () => {
   let service: GameRoomsService;
-  let roomRepository: jest.Mocked<Pick<Repository<GameRoomEntity>, 'create' | 'save'>>;
+  let roomRepository: jest.Mocked<
+    Pick<Repository<GameRoomEntity>, 'create' | 'save' | 'findOne'>
+  >;
   let participantRepository: jest.Mocked<
-    Pick<Repository<GameRoomParticipantEntity>, 'create' | 'save' | 'find'>
+    Pick<
+      Repository<GameRoomParticipantEntity>,
+      'count' | 'create' | 'find' | 'findOne' | 'save'
+    >
+  >;
+  let gameRoomMissionsService: jest.Mocked<
+    Pick<GameRoomMissionsService, 'createMissionForGameStart'>
   >;
   let manager: { getRepository: jest.Mock; query: jest.Mock };
   let dataSource: { transaction: jest.Mock; getRepository: jest.Mock };
@@ -22,13 +31,20 @@ describe('GameRoomsService', () => {
   beforeEach(() => {
     roomRepository = {
       create: jest.fn(),
+      findOne: jest.fn(),
       save: jest.fn(),
     };
 
     participantRepository = {
+      count: jest.fn(),
       create: jest.fn(),
-      save: jest.fn(),
       find: jest.fn(),
+      findOne: jest.fn(),
+      save: jest.fn(),
+    };
+
+    gameRoomMissionsService = {
+      createMissionForGameStart: jest.fn(),
     };
 
     manager = {
@@ -47,7 +63,10 @@ describe('GameRoomsService', () => {
       getRepository: jest.fn(() => participantRepository),
     };
 
-    service = new GameRoomsService(dataSource as unknown as DataSource);
+    service = new GameRoomsService(
+      dataSource as unknown as DataSource,
+      gameRoomMissionsService as unknown as GameRoomMissionsService,
+    );
   });
 
   it('lists only rooms accessible to the authenticated user', async () => {
@@ -197,5 +216,133 @@ describe('GameRoomsService', () => {
     expect(dataSource.transaction).toHaveBeenCalled();
     expect(roomRepository.save).not.toHaveBeenCalled();
     expect(participantRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('allows only the joined owner to start a waiting room', async () => {
+    roomRepository.findOne.mockResolvedValue({
+      id: 'room-1',
+      ownerUserId: 'owner-1',
+      status: GameRoomStatus.WAITING,
+      difficulty: 'EASY',
+      minParticipants: 2,
+      maxParticipants: 4,
+    } as GameRoomEntity);
+    participantRepository.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.startGame({
+        actorUserId: 'other-user',
+        gameRoomId: 'room-1',
+        missionTemplateId: 'template-1',
+        runtimeContainerId: 'container-1',
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'GAME_ROOM_OWNER_REQUIRED',
+      }),
+    });
+
+    expect(gameRoomMissionsService.createMissionForGameStart).not.toHaveBeenCalled();
+  });
+
+  it('rejects game start when the room does not meet the minimum participant count', async () => {
+    roomRepository.findOne.mockResolvedValue({
+      id: 'room-1',
+      ownerUserId: 'owner-1',
+      status: GameRoomStatus.WAITING,
+      difficulty: 'EASY',
+      minParticipants: 3,
+      maxParticipants: 4,
+    } as GameRoomEntity);
+    participantRepository.findOne.mockResolvedValue({
+      id: 'owner-participant-1',
+      gameRoomId: 'room-1',
+      userId: 'owner-1',
+      role: GameRoomParticipantRole.OWNER,
+      membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+    } as GameRoomParticipantEntity);
+    participantRepository.count.mockResolvedValue(2);
+
+    await expect(
+      service.startGame({
+        actorUserId: 'owner-1',
+        gameRoomId: 'room-1',
+        missionTemplateId: 'template-1',
+        runtimeContainerId: 'container-1',
+      }),
+    ).rejects.toMatchObject({
+      response: expect.objectContaining({
+        code: 'MINIMUM_PARTICIPANTS_NOT_MET',
+      }),
+    });
+
+    expect(gameRoomMissionsService.createMissionForGameStart).not.toHaveBeenCalled();
+  });
+
+  it('creates the room mission and marks the room in progress when start validation passes', async () => {
+    roomRepository.findOne.mockResolvedValue({
+      id: 'room-1',
+      ownerUserId: 'owner-1',
+      status: GameRoomStatus.WAITING,
+      difficulty: 'EASY',
+      minParticipants: 2,
+      maxParticipants: 4,
+    } as GameRoomEntity);
+    participantRepository.findOne.mockResolvedValue({
+      id: 'owner-participant-1',
+      gameRoomId: 'room-1',
+      userId: 'owner-1',
+      role: GameRoomParticipantRole.OWNER,
+      membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+    } as GameRoomParticipantEntity);
+    participantRepository.count.mockResolvedValue(2);
+    gameRoomMissionsService.createMissionForGameStart.mockResolvedValue({
+      id: 'mission-1',
+    } as never);
+    roomRepository.save.mockImplementation(async (room) => room as never);
+
+    const result = await service.startGame({
+      actorUserId: 'owner-1',
+      gameRoomId: 'room-1',
+      missionTemplateId: 'template-1',
+      runtimeContainerId: 'container-1',
+    });
+
+    expect(manager.query).toHaveBeenNthCalledWith(
+      1,
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 1))',
+      ['room-1'],
+    );
+    expect(manager.query).toHaveBeenNthCalledWith(
+      2,
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
+      ['owner-1'],
+    );
+    expect(participantRepository.count).toHaveBeenCalledWith({
+      where: {
+        gameRoomId: 'room-1',
+        membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+      },
+    });
+    expect(gameRoomMissionsService.createMissionForGameStart).toHaveBeenCalledWith({
+      manager,
+      gameRoomId: 'room-1',
+      roomDifficulty: 'EASY',
+      missionTemplateId: 'template-1',
+      runtimeContainerId: 'container-1',
+    });
+    expect(roomRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'room-1',
+        status: GameRoomStatus.IN_PROGRESS,
+      }),
+    );
+    expect(result).toEqual({
+      gameRoom: expect.objectContaining({
+        id: 'room-1',
+        status: GameRoomStatus.IN_PROGRESS,
+      }),
+      gameRoomMissionId: 'mission-1',
+    });
   });
 });

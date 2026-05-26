@@ -98,13 +98,16 @@ export class GameRoomParticipantsService {
     input: InviteParticipantInput,
   ): Promise<GameRoomParticipantEntity> {
     return this.dataSource.transaction(async (manager) => {
+      const gameRoomRepository = manager.getRepository(GameRoomEntity);
+      const lockedRoom = await this.getRoomOrThrow(gameRoomRepository, input.gameRoomId);
+
+      await this.acquireRoomLifecycleLock(manager, lockedRoom.id);
       await this.acquireWaitingRoomLocks(manager, [
         input.actorUserId,
         input.invitedUserId,
       ]);
 
       const participantRepository = manager.getRepository(GameRoomParticipantEntity);
-      const gameRoomRepository = manager.getRepository(GameRoomEntity);
       const gameRoom = await this.getRoomOrThrow(gameRoomRepository, input.gameRoomId);
 
       this.ensureWaitingRoom(gameRoom);
@@ -148,9 +151,15 @@ export class GameRoomParticipantsService {
     input: ProcessInvitationInput,
   ): Promise<GameRoomParticipantEntity> {
     return this.dataSource.transaction(async (manager) => {
+      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
+      const lockedParticipant = await this.getParticipantOrThrow(
+        participantRepository,
+        input.participantId,
+      );
+
+      await this.acquireRoomLifecycleLock(manager, lockedParticipant.gameRoomId);
       await this.acquireWaitingRoomLock(manager, input.actorUserId);
 
-      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
       const participant = await this.getParticipantOrThrow(
         participantRepository,
         input.participantId,
@@ -178,9 +187,15 @@ export class GameRoomParticipantsService {
     input: ProcessInvitationInput,
   ): Promise<GameRoomParticipantEntity> {
     return this.dataSource.transaction(async (manager) => {
+      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
+      const lockedParticipant = await this.getParticipantOrThrow(
+        participantRepository,
+        input.participantId,
+      );
+
+      await this.acquireRoomLifecycleLock(manager, lockedParticipant.gameRoomId);
       await this.acquireWaitingRoomLock(manager, input.actorUserId);
 
-      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
       const participant = await this.getParticipantOrThrow(
         participantRepository,
         input.participantId,
@@ -201,9 +216,15 @@ export class GameRoomParticipantsService {
 
   async leaveRoom(input: LeaveRoomInput): Promise<GameRoomParticipantEntity> {
     return this.dataSource.transaction(async (manager) => {
+      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
+      const lockedParticipant = await this.getParticipantOrThrow(
+        participantRepository,
+        input.participantId,
+      );
+
+      await this.acquireRoomLifecycleLock(manager, lockedParticipant.gameRoomId);
       await this.acquireWaitingRoomLock(manager, input.actorUserId);
 
-      const participantRepository = manager.getRepository(GameRoomParticipantEntity);
       const participant = await this.getParticipantOrThrow(
         participantRepository,
         input.participantId,
@@ -350,6 +371,16 @@ export class GameRoomParticipantsService {
     await manager.query(
       'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
       [userId],
+    );
+  }
+
+  private async acquireRoomLifecycleLock(
+    manager: EntityManager,
+    gameRoomId: string,
+  ): Promise<void> {
+    await manager.query(
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 1))',
+      [gameRoomId],
     );
   }
 

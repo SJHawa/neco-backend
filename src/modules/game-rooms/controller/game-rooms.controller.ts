@@ -1,4 +1,13 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  Param,
+  ParseUUIDPipe,
+  Post,
+  UseGuards,
+} from '@nestjs/common';
+import { IsUUID } from 'class-validator';
 import { CurrentUserId } from '@common/decorators/current-user-id.decorator';
 import { AuthenticatedRequestGuard } from '@common/guards/authenticated-request.guard';
 import { toSeoulIso } from '@common/utils/date.util';
@@ -14,6 +23,18 @@ interface GameRoomListItemResponse {
   minParticipants: number;
   maxParticipants: number;
   createdAt: string;
+  updatedAt: string;
+}
+
+class StartGameRequestBody {
+  @IsUUID()
+  missionTemplateId!: string;
+}
+
+interface GameRoomStartResponse {
+  gameRoomId: string;
+  gameRoomMissionId: string;
+  status: string;
   updatedAt: string;
 }
 
@@ -40,5 +61,25 @@ export class GameRoomsController {
       createdAt: toSeoulIso(room.createdAt),
       updatedAt: toSeoulIso(room.updatedAt),
     }));
+  }
+
+  @Post(':gameRoomId/start')
+  async startGame(
+    @CurrentUserId() userId: string,
+    @Param('gameRoomId', new ParseUUIDPipe({ version: '4' })) gameRoomId: string,
+    @Body() body: StartGameRequestBody,
+  ): Promise<GameRoomStartResponse> {
+    const result = await this.gameRoomsService.startGame({
+      actorUserId: userId,
+      gameRoomId,
+      missionTemplateId: body.missionTemplateId,
+    });
+
+    return {
+      gameRoomId: result.gameRoom.id,
+      gameRoomMissionId: result.gameRoomMissionId,
+      status: result.gameRoom.status,
+      updatedAt: toSeoulIso(result.gameRoom.updatedAt),
+    };
   }
 }

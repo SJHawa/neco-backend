@@ -296,11 +296,16 @@ describe('GameRoomParticipantsService', () => {
     expect(result.id).toBe('participant-1');
     expect(manager.query).toHaveBeenNthCalledWith(
       1,
+      'SELECT pg_advisory_xact_lock(hashtextextended($1, 1))',
+      ['room-1'],
+    );
+    expect(manager.query).toHaveBeenNthCalledWith(
+      2,
       'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
       ['invitee-1'],
     );
     expect(manager.query).toHaveBeenNthCalledWith(
-      2,
+      3,
       'SELECT pg_advisory_xact_lock(hashtextextended($1, 0))',
       ['owner-1'],
     );

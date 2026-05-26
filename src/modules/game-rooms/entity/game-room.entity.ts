@@ -1,4 +1,5 @@
 import { BaseEntity } from '@database/base.entity';
+import { GameRoomMissionEntity } from '@modules/game-room-missions/entity/game-room-mission.entity';
 import { GameRoomParticipantEntity } from '@modules/game-room-participants/entity/game-room-participant.entity';
 import { GameRoomStatus } from '@shared/enums';
 import { Column, Entity, Index, OneToMany } from 'typeorm';
@@ -29,4 +30,7 @@ export class GameRoomEntity extends BaseEntity {
 
   @OneToMany(() => GameRoomParticipantEntity, (participant) => participant.gameRoom)
   participants!: GameRoomParticipantEntity[];
+
+  @OneToMany(() => GameRoomMissionEntity, (gameRoomMission) => gameRoomMission.gameRoom)
+  missions!: GameRoomMissionEntity[];
 }

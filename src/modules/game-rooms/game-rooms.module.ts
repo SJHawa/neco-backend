@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { AuthenticatedRequestGuard } from '@common/guards/authenticated-request.guard';
+import { GameRoomMissionsModule } from '@modules/game-room-missions/game-room-missions.module';
 import { GameRoomsController } from './controller/game-rooms.controller';
 import { GameRoomsService } from './service/game-rooms.service';
 
@@ -9,6 +10,7 @@ import { GameRoomsService } from './service/game-rooms.service';
  * To be implemented by Worker 2.
  */
 @Module({
+  imports: [GameRoomMissionsModule],
   controllers: [GameRoomsController],
   providers: [AuthenticatedRequestGuard, GameRoomsService],
   exports: [GameRoomsService],
