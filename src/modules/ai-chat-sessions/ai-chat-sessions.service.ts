@@ -221,7 +221,7 @@ export class AiChatSessionsService {
     dto: CreateAiChatMessageDto,
   ): Promise<CreateAiChatMessageResult> {
     const session = await this.requireOwnedSession(user.userId, aiChatSessionId);
-    const sessionGameRoomId = await this.resolveActiveSessionGameRoomId(session.gameRoomId);
+    const sessionGameRoomId = await this.resolveActiveSessionGameRoomId(session.gameRoomId, user.userId);
     const resolvedSession =
       sessionGameRoomId === session.gameRoomId
         ? session
@@ -290,7 +290,7 @@ export class AiChatSessionsService {
       const command = await this.resolveCommandWithRoomCreateContext(
         resolvedSession,
         aiChatSessionId,
-        this.resolveInvitationMessageTarget(validation.command, dto.message),
+        this.resolveMessageTarget(validation.command, dto.message),
         dto.message,
       );
       const execution = await this.executeCommand(user, resolvedSession, command);
@@ -371,6 +371,7 @@ export class AiChatSessionsService {
 
   private async resolveActiveSessionGameRoomId(
     gameRoomId: string | null,
+    userId: string,
   ): Promise<string | null> {
     if (!gameRoomId) {
       return null;
@@ -381,11 +382,21 @@ export class AiChatSessionsService {
       select: { id: true, status: true },
     });
 
-    if (room?.status === GameRoomStatus.FINISHED) {
+    if (!room || room.status === GameRoomStatus.FINISHED) {
       return null;
     }
 
-    return gameRoomId;
+    const hasMembership = await this.participantRepository.exists({
+      where: {
+        gameRoomId,
+        userId,
+        membershipStatus: In([
+          GameRoomParticipantMembershipStatus.INVITED,
+          GameRoomParticipantMembershipStatus.JOINED,
+        ]),
+      },
+    });
+    return hasMembership ? gameRoomId : null;
   }
 
   private async loadPriorMessagesForIntent(
@@ -992,10 +1003,17 @@ export class AiChatSessionsService {
     return membership?.gameRoomId ?? null;
   }
 
-  private resolveInvitationMessageTarget(
+  private resolveMessageTarget(
     command: AiChatCommandDto,
     message: string,
   ): AiChatCommandDto {
+    if (
+      command.requestType === AiChatRequestType.USER_INVITE ||
+      command.requestType === AiChatRequestType.GAME_START
+    ) {
+      const { gameRoomId, ...rest } = command;
+      return { ...rest, ...(gameRoomId && message.includes(gameRoomId) ? { gameRoomId } : {}) };
+    }
     if (
       command.requestType !== AiChatRequestType.ROOM_JOIN &&
       command.requestType !== AiChatRequestType.USER_INVITE_DENY

@@ -66,6 +66,7 @@ describe('AiChatSessionsService', () => {
     } as unknown as jest.Mocked<Repository<User>>;
 
     participantRepository = {
+      exists: jest.fn().mockResolvedValue(true),
       find: jest.fn(),
       findOne: jest.fn(),
     } as unknown as jest.Mocked<Repository<GameRoomParticipantEntity>>;
@@ -170,6 +171,13 @@ describe('AiChatSessionsService', () => {
         })),
     };
 
+    const sessionRepo = {
+      findOneOrFail: jest.fn(async () => ({
+        id: sessionId, requesterUserId: user.userId, gameRoomId: null,
+      })),
+      save: jest.fn(async (value: AiChatSession) => value),
+    };
+
     (dataSource.transaction as jest.Mock).mockImplementation(
       async (callback: (manager: { getRepository: (entity: unknown) => unknown }) => unknown) => {
         const manager = {
@@ -180,16 +188,7 @@ describe('AiChatSessionsService', () => {
             if (entity === AiChatMessage) {
               return messageRepo;
             }
-            if (entity === AiChatSession) {
-              return {
-                findOneOrFail: jest.fn(async () => ({
-                  id: sessionId,
-                  requesterUserId: user.userId,
-                  gameRoomId: null,
-                })),
-                save: jest.fn(async (value) => value),
-              };
-            }
+            if (entity === AiChatSession) return sessionRepo;
             throw new Error('Unexpected entity');
           },
         };
@@ -197,7 +196,7 @@ describe('AiChatSessionsService', () => {
       },
     );
 
-    return { requestRepo, messageRepo };
+    return { requestRepo, messageRepo, sessionRepo };
   }
 
   describe('listSessions', () => {
@@ -320,7 +319,7 @@ describe('AiChatSessionsService', () => {
         requesterUserId: user.userId,
         gameRoomId: null,
       } as AiChatSession);
-      gameRoomRepository.findOne.mockResolvedValue(null);
+      gameRoomRepository.findOne.mockImplementation(async ({ where }) => ({ id: where.id, status: GameRoomStatus.WAITING }));
     });
 
     it('persists COMPLETED ROOM_CREATE with PENDING commandResult after parsing', async () => {
@@ -871,6 +870,60 @@ describe('AiChatSessionsService', () => {
         relations: { gameRoom: true },
         where: { userId: user.userId, membershipStatus: 'INVITED', gameRoom: { status: 'WAITING' } },
         take: 2,
+      });
+    });
+
+    it('preserves an explicitly requested room and its authorization failure', async () => {
+      mockTransactions();
+      llmIntentParser.parseUserMessage.mockResolvedValue({
+        requestType: 'USER_INVITE', payload: { gameRoomId: 'other-owned-room', inviteeNicknames: ['player2'] },
+      });
+      userRepository.find.mockResolvedValue([{ id: 'user-2', nickname: 'player2' } as User]);
+      gameRoomParticipantsService.inviteParticipants.mockRejectedValue(new HttpException({
+        code: 'GAME_ROOM_OWNER_REQUIRED', message: 'Only the room owner can perform this action.',
+      }, 403));
+      const result = await service.createMessage(user, sessionId, { message: 'other-owned-room 방에 player2 초대해줘' });
+      expect(gameRoomParticipantsService.inviteParticipants).toHaveBeenCalledWith({
+        actorUserId: user.userId, gameRoomId: 'other-owned-room', invitedUserIds: ['user-2'],
+      });
+      expect(result.commandResult?.status).toBe('FAILED');
+    });
+
+    it.each(['missing', 'left'] as const)('discards a %s session room before resolving an owned room', async (reason) => {
+      mockTransactions();
+      aiChatSessionRepository.findOne.mockResolvedValue({
+        id: sessionId, requesterUserId: user.userId, gameRoomId: 'old-room',
+      } as AiChatSession);
+      if (reason === 'missing') gameRoomRepository.findOne.mockResolvedValue(null);
+      else participantRepository.exists.mockResolvedValue(false);
+      participantRepository.findOne.mockResolvedValue({ gameRoomId: 'new-owned-room' } as GameRoomParticipantEntity);
+      llmIntentParser.parseUserMessage.mockResolvedValue({ requestType: 'USER_INVITE', payload: { inviteeNicknames: ['player2'] } });
+      userRepository.find.mockResolvedValue([{ id: 'user-2', nickname: 'player2' } as User]);
+      gameRoomParticipantsService.inviteParticipants.mockResolvedValue([]);
+      await service.createMessage(user, sessionId, { message: 'player2 초대해줘' });
+      expect(llmIntentParser.parseUserMessage).toHaveBeenCalledWith(expect.objectContaining({ gameRoomId: null }));
+      expect(gameRoomParticipantsService.inviteParticipants).toHaveBeenCalledWith({
+        actorUserId: user.userId, gameRoomId: 'new-owned-room', invitedUserIds: ['user-2'],
+      });
+    });
+
+    it('persists a newly created room in the session and invites from that room on the next turn', async () => {
+      const { sessionRepo } = mockTransactions();
+      llmIntentParser.parseUserMessage
+        .mockResolvedValueOnce({ requestType: 'ROOM_CREATE', payload: { desiredDifficulty: 'EASY', missionTemplateId: 'template-1' } })
+        .mockResolvedValueOnce({ requestType: 'USER_INVITE', payload: { gameRoomId: 'old-room', inviteeNicknames: ['player2'] } });
+      gameRoomMissionsService.validateMissionTemplateSelection.mockResolvedValue({ id: 'template-1' } as never);
+      gameRoomsService.createRoom.mockResolvedValue({ id: 'created-room' } as never);
+      const created = await service.createMessage(user, sessionId, { message: 'EASY template-1 방 만들어줘' });
+      expect(created.commandResult?.gameRoomId).toBe('created-room');
+      expect(sessionRepo.save).toHaveBeenCalledWith(expect.objectContaining({ gameRoomId: 'created-room' }));
+      aiChatSessionRepository.findOne.mockResolvedValue(sessionRepo.save.mock.calls[0][0]);
+      userRepository.find.mockResolvedValue([{ id: 'user-2', nickname: 'player2' } as User]);
+      gameRoomParticipantsService.inviteParticipants.mockResolvedValue([]);
+      const invited = await service.createMessage(user, sessionId, { message: 'player2 초대해줘' });
+      expect(invited.commandResult?.status).toBe('SUCCESS');
+      expect(gameRoomParticipantsService.inviteParticipants).toHaveBeenCalledWith({
+        actorUserId: user.userId, gameRoomId: 'created-room', invitedUserIds: ['user-2'],
       });
     });
 
