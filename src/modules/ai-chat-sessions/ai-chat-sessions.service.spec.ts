@@ -790,6 +790,62 @@ describe('AiChatSessionsService', () => {
       });
     });
 
+    it.each(['ROOM_JOIN', 'USER_INVITE_DENY'] as const)(
+      'resolves the current invitation for %s despite stale session and LLM room context',
+      async (requestType) => {
+        aiChatSessionRepository.findOne.mockResolvedValue({
+          id: sessionId, requesterUserId: user.userId, gameRoomId: 'old-room',
+        } as AiChatSession);
+        gameRoomRepository.findOne.mockResolvedValue({ id: 'old-room', status: GameRoomStatus.WAITING });
+        llmIntentParser.parseUserMessage.mockResolvedValue({
+          requestType, payload: { gameRoomId: 'old-room' },
+        });
+        mockTransactions();
+        const invitation = {
+          id: 'new-invitation', gameRoomId: 'new-room', userId: user.userId,
+          membershipStatus: 'INVITED', gameRoom: { status: GameRoomStatus.WAITING },
+        } as GameRoomParticipantEntity;
+        participantRepository.findOne.mockImplementation(async (options) => {
+          const where = options?.where as { gameRoomId?: string };
+          return where.gameRoomId === 'old-room' ? null : invitation;
+        });
+        participantRepository.find.mockImplementation(async (options) => {
+          const where = options?.where as { membershipStatus?: string };
+          return where.membershipStatus === 'INVITED' ? [invitation] : [];
+        });
+        userRepository.find.mockResolvedValue([]);
+        gameRoomParticipantsService.acceptInvitation.mockResolvedValue(invitation);
+        gameRoomParticipantsService.denyInvitation.mockResolvedValue(invitation);
+
+        const result = await service.createMessage(user, sessionId, {
+          message: requestType === 'ROOM_JOIN' ? '초대 수락할게요.' : '초대 거절할게요.',
+        });
+        expect(result.commandResult).toMatchObject({ status: 'SUCCESS', gameRoomId: 'new-room' });
+        expect(requestType === 'ROOM_JOIN'
+          ? gameRoomParticipantsService.acceptInvitation
+          : gameRoomParticipantsService.denyInvitation).toHaveBeenCalledWith({
+            actorUserId: user.userId, participantId: 'new-invitation',
+          });
+      },
+    );
+
+    it('uses the new session room rather than a room invented from old chat history', async () => {
+      aiChatSessionRepository.findOne.mockResolvedValue({
+        id: sessionId, requesterUserId: user.userId, gameRoomId: 'new-owned-room',
+      } as AiChatSession);
+      gameRoomRepository.findOne.mockResolvedValue({ id: 'new-owned-room', status: GameRoomStatus.WAITING });
+      llmIntentParser.parseUserMessage.mockResolvedValue({
+        requestType: 'USER_INVITE', payload: { gameRoomId: 'old-room', inviteeNicknames: ['player2'] },
+      });
+      mockTransactions();
+      userRepository.find.mockResolvedValue([{ id: 'user-2', nickname: 'player2' } as User]);
+      gameRoomParticipantsService.inviteParticipants.mockResolvedValue([]);
+      await service.createMessage(user, sessionId, { message: 'player2 초대해줘' });
+      expect(gameRoomParticipantsService.inviteParticipants).toHaveBeenCalledWith({
+        actorUserId: user.userId, gameRoomId: 'new-owned-room', invitedUserIds: ['user-2'],
+      });
+    });
+
     it('starts the game from the mission template selected during successful ROOM_CREATE', async () => {
       aiChatSessionRepository.findOne.mockResolvedValue({
         id: sessionId,
