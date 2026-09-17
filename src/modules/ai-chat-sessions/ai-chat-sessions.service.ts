@@ -290,7 +290,7 @@ export class AiChatSessionsService {
       const command = await this.resolveCommandWithRoomCreateContext(
         resolvedSession,
         aiChatSessionId,
-        validation.command,
+        this.resolveInvitationMessageTarget(validation.command, dto.message),
         dto.message,
       );
       const execution = await this.executeCommand(user, resolvedSession, command);
@@ -992,39 +992,67 @@ export class AiChatSessionsService {
     return membership?.gameRoomId ?? null;
   }
 
-  private async resolveInvitationForCommand(
-    userId: string,
-    session: AiChatSession,
-    command: RoomJoinCommandDto | UserInviteDenyCommandDto,
-  ): Promise<GameRoomParticipantEntity | null> {
-    if (command.participantId) {
-      return this.participantRepository.findOne({
-        relations: { gameRoom: true },
-        where: { id: command.participantId },
-      });
+  private resolveInvitationMessageTarget(
+    command: AiChatCommandDto,
+    message: string,
+  ): AiChatCommandDto {
+    if (
+      command.requestType !== AiChatRequestType.ROOM_JOIN &&
+      command.requestType !== AiChatRequestType.USER_INVITE_DENY
+    ) {
+      return command;
     }
 
-    const gameRoomId = command.gameRoomId ?? session.gameRoomId;
-    if (gameRoomId) {
+    // The selected card is part of the user message, never inferred from history.
+    const selected = message.match(
+      /^게임방 초대(?:를 수락할게요|는 거절할게요)\. \(초대 ID: ([a-zA-Z0-9-]+)\)$/, 
+    );
+    if (selected) {
+      return {
+        requestType: message.startsWith('게임방 초대를 수락')
+          ? AiChatRequestType.ROOM_JOIN
+          : AiChatRequestType.USER_INVITE_DENY,
+        participantId: selected[1],
+      };
+    }
+
+    const { gameRoomId, participantId, ...rest } = command;
+    return {
+      ...rest,
+      ...(gameRoomId && message.includes(gameRoomId) ? { gameRoomId } : {}),
+      ...(participantId && message.includes(participantId) ? { participantId } : {}),
+    };
+  }
+
+  private async resolveInvitationForCommand(
+    userId: string,
+    _session: AiChatSession,
+    command: RoomJoinCommandDto | UserInviteDenyCommandDto,
+  ): Promise<GameRoomParticipantEntity | null> {
+    const where = {
+      userId,
+      membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
+      gameRoom: { status: GameRoomStatus.WAITING },
+    };
+    if (command.participantId || command.gameRoomId) {
       return this.participantRepository.findOne({
         relations: { gameRoom: true },
         where: {
-          gameRoomId,
-          userId,
-          membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
+          ...where,
+          ...(command.participantId ? { id: command.participantId } : {}),
+          ...(command.gameRoomId ? { gameRoomId: command.gameRoomId } : {}),
         },
-        order: { createdAt: 'DESC' },
       });
     }
 
-    return this.participantRepository.findOne({
+    // A session may still refer to a previous game. Only a unique, live invitation
+    // can be selected implicitly; do not choose the latest one in ambiguous data.
+    const invitations = await this.participantRepository.find({
       relations: { gameRoom: true },
-      where: {
-        userId,
-        membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
-      },
-      order: { createdAt: 'DESC' },
+      where,
+      take: 2,
     });
+    return invitations.length === 1 ? invitations[0] : null;
   }
 
   private async resolveSelectedMissionTemplateId(

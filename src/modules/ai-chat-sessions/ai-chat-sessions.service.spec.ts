@@ -752,7 +752,10 @@ describe('AiChatSessionsService', () => {
         gameRoomId: 'room-1',
         userId: user.userId,
       } as GameRoomParticipantEntity);
-      participantRepository.find.mockResolvedValue([
+      participantRepository.find.mockResolvedValueOnce([{
+        id: 'participant-1', gameRoomId: 'room-1', userId: user.userId,
+        membershipStatus: 'INVITED', gameRoom: { status: GameRoomStatus.WAITING },
+      } as GameRoomParticipantEntity]).mockResolvedValue([
         {
           id: 'participant-owner',
           gameRoomId: 'room-1',
@@ -828,6 +831,48 @@ describe('AiChatSessionsService', () => {
           });
       },
     );
+
+    it.each(['ROOM_JOIN', 'USER_INVITE_DENY'] as const)(
+      'uses the selected invitation ID for %s and scopes it to the authenticated user',
+      async (requestType) => {
+        mockTransactions();
+        llmIntentParser.parseUserMessage.mockResolvedValue({
+          requestType, payload: { participantId: 'stale-invitation', gameRoomId: 'old-room' },
+        });
+        participantRepository.findOne.mockResolvedValue(null);
+        const verb = requestType === 'ROOM_JOIN' ? '를 수락할게요' : '는 거절할게요';
+        const result = await service.createMessage(user, sessionId, {
+          message: `게임방 초대${verb}. (초대 ID: selected-invitation)`,
+        });
+        expect(participantRepository.findOne).toHaveBeenCalledWith({
+          relations: { gameRoom: true },
+          where: {
+            id: 'selected-invitation', userId: user.userId,
+            membershipStatus: 'INVITED', gameRoom: { status: 'WAITING' },
+          },
+        });
+        expect(participantRepository.find).not.toHaveBeenCalled();
+        expect(gameRoomParticipantsService.acceptInvitation).not.toHaveBeenCalled();
+        expect(gameRoomParticipantsService.denyInvitation).not.toHaveBeenCalled();
+        expect(result.commandResult?.status).toBe('FAILED');
+      },
+    );
+
+    it('does not choose an arbitrary invitation when multiple live invitations exist', async () => {
+      mockTransactions();
+      llmIntentParser.parseUserMessage.mockResolvedValue({ requestType: 'ROOM_JOIN', payload: {} });
+      participantRepository.find.mockResolvedValue([
+        { id: 'invite-1' }, { id: 'invite-2' },
+      ] as GameRoomParticipantEntity[]);
+      const result = await service.createMessage(user, sessionId, { message: '초대 수락할게요' });
+      expect(result.commandResult?.status).toBe('FAILED');
+      expect(gameRoomParticipantsService.acceptInvitation).not.toHaveBeenCalled();
+      expect(participantRepository.find).toHaveBeenCalledWith({
+        relations: { gameRoom: true },
+        where: { userId: user.userId, membershipStatus: 'INVITED', gameRoom: { status: 'WAITING' } },
+        take: 2,
+      });
+    });
 
     it('uses the new session room rather than a room invented from old chat history', async () => {
       aiChatSessionRepository.findOne.mockResolvedValue({
