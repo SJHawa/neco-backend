@@ -99,6 +99,81 @@ describe('RealtimeGateway support hooks', () => {
     });
   });
 
+  it('cleans up the old room without leaving the newly joined room', async () => {
+    const authService: jest.Mocked<RealtimeAuthService> = {
+      validateAccessToken: jest.fn().mockResolvedValue({ userId: 'user-1' }),
+    };
+    const roomAccessService: jest.Mocked<RealtimeRoomAccessService> = {
+      getJoinRoomState: jest.fn().mockImplementation(async ({ gameRoomId }) => ({
+        gameRoomId,
+        initialState: {
+          gameRoomId,
+          participants: [
+            {
+              userId: 'user-1',
+              nickname: 'owner',
+              role: GameRoomParticipantRole.OWNER,
+              membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+            },
+          ],
+          changedParticipant: null,
+          gameState: {},
+          missionState: null,
+          occurredAt: '2026-05-22T00:00:00+09:00',
+        },
+      })),
+    };
+    const disconnectService: jest.Mocked<RealtimeDisconnectService> = {
+      handleDisconnect: jest.fn().mockResolvedValue(undefined),
+    };
+    const turnEditService: jest.Mocked<RealtimeTurnEditService> = {
+      authorizeCodeChange: jest.fn(),
+    };
+    const turnSubmitService: jest.Mocked<RealtimeTurnSubmitService> = {
+      submitTurn: jest.fn(),
+    };
+    const supportStateStore: jest.Mocked<RealtimeSupportStateStore> = {
+      saveCurrentTurnState: jest.fn().mockResolvedValue(undefined),
+      getCurrentTurnState: jest.fn(),
+      saveLatestFileContent: jest.fn(),
+      getLatestFileContent: jest.fn(),
+      listLatestFileContents: jest.fn(),
+      clearLatestFileContents: jest.fn(),
+    };
+
+    const gateway = new RealtimeGateway(
+      authService,
+      roomAccessService,
+      disconnectService,
+      turnEditService,
+      turnSubmitService,
+      supportStateStore,
+    );
+
+    const firstSocket = createSocket();
+    const secondSocket = createSocket();
+
+    await gateway.handleJoinRoom(firstSocket, {
+      accessToken: 'token-1',
+      gameRoomId: 'room-1',
+    });
+    await gateway.handleJoinRoom(secondSocket, {
+      accessToken: 'token-2',
+      gameRoomId: 'room-2',
+    });
+
+    await gateway.handleDisconnect(firstSocket);
+    expect(disconnectService.handleDisconnect).toHaveBeenCalledTimes(1);
+    expect(disconnectService.handleDisconnect).toHaveBeenLastCalledWith({ gameRoomId: 'room-1', userId: 'user-1' });
+
+    await gateway.handleDisconnect(secondSocket);
+    expect(disconnectService.handleDisconnect).toHaveBeenCalledTimes(2);
+    expect(disconnectService.handleDisconnect).toHaveBeenLastCalledWith({
+      gameRoomId: 'room-2',
+      userId: 'user-1',
+    });
+  });
+
   it('forwards whole-file turn-submit payloads when the current turn has no buffered edits yet', async () => {
     const authService: jest.Mocked<RealtimeAuthService> = {
       validateAccessToken: jest.fn().mockResolvedValue({ userId: 'user-1' }),
