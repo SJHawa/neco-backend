@@ -11,16 +11,16 @@
 **Read first:** 위 선행 Task 로그, 아래 대상 파일과 인접 테스트. 계약을 변경하거나 충돌을 해소할 때 `docs/specs/05-api-and-realtime.md`, `docs/specs/06-gameplay-lifecycle.md` 및 권한/상태 규칙이 충돌하면 `docs/specs/02-domain-model.md`을 확인한다. 기존 전체 worker 계획의 재실행은 이 Task 범위가 아니다.
 
 **Acceptance criteria:**
-- [ ] B의 새 방 ID와 저장된 세션 방 ID가 일치하고 후속 초대가 그 방에서 실행된다.
-- [ ] 과거 방이나 유효하지 않은 멤버십이 후속 요청 문맥으로 지속되지 않는다.
-- [ ] 타인의 방 초대는 기존 OWNER + JOINED 검사로 거부한다.
+- [x] B의 새 방 ID와 저장된 세션 방 ID가 일치하고 후속 초대가 그 방에서 실행된다.
+- [x] 과거 방이나 유효하지 않은 멤버십이 후속 요청 문맥으로 지속되지 않는다.
+- [x] 타인의 방 초대는 기존 OWNER + JOINED 검사로 거부한다.
 
 **Files likely touched / inspected:**
 - [`src/modules/ai-chat-sessions/ai-chat-sessions.service.ts`](../../../src/modules/ai-chat-sessions/ai-chat-sessions.service.ts)
 - [`src/modules/ai-chat-sessions/ai-chat-sessions.service.spec.ts`](../../../src/modules/ai-chat-sessions/ai-chat-sessions.service.spec.ts)
 - [`src/modules/game-rooms/service/game-rooms.service.spec.ts`](../../../src/modules/game-rooms/service/game-rooms.service.spec.ts)
 
-**Verification — 실행 예정:**
+**Verification — 계획 명령 (실제 결과는 아래 실행 로그):**
 
 저장소 루트에서 실행한다.
 
@@ -51,3 +51,5 @@ pnpm exec jest --runInBand ai-chat-sessions.service.spec.ts game-rooms.service.s
 **Design decisions:** HTTP 본문은 message만 유지. 카드 문구는 `게임방 초대를 수락할게요. (초대 ID: <participantId>)` / `게임방 초대는 거절할게요. (초대 ID: <participantId>)`. 서버는 사용자와 초대 상태를 별도 검증한다. MVP의 연결 종료→LEFT 정책은 유지한다.
 
 **Impact / next:** README의 순서를 따라 진행하며 실제 환경에서 검증하지 않은 항목은 완료로 간주하지 않는다.
+
+**Implementation commit:** `236fae3` (이후 검증 체크리스트 갱신은 Task 5 로그 커밋).

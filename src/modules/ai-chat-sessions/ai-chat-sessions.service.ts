@@ -1023,7 +1023,7 @@ export class AiChatSessionsService {
 
     // The selected card is part of the user message, never inferred from history.
     const selected = message.match(
-      /^게임방 초대(?:를 수락할게요|는 거절할게요)\. \(초대 ID: ([a-zA-Z0-9-]+)\)$/, 
+      /^게임방 초대(?:를 수락할게요|는 거절할게요)\. \(초대 ID: ([a-zA-Z0-9-]+)\)$/,
     );
     if (selected) {
       return {
