@@ -221,7 +221,7 @@ export class AiChatSessionsService {
     dto: CreateAiChatMessageDto,
   ): Promise<CreateAiChatMessageResult> {
     const session = await this.requireOwnedSession(user.userId, aiChatSessionId);
-    const sessionGameRoomId = await this.resolveActiveSessionGameRoomId(session.gameRoomId);
+    const sessionGameRoomId = await this.resolveActiveSessionGameRoomId(session.gameRoomId, user.userId);
     const resolvedSession =
       sessionGameRoomId === session.gameRoomId
         ? session
@@ -290,7 +290,7 @@ export class AiChatSessionsService {
       const command = await this.resolveCommandWithRoomCreateContext(
         resolvedSession,
         aiChatSessionId,
-        validation.command,
+        this.resolveMessageTarget(validation.command, dto.message),
         dto.message,
       );
       const execution = await this.executeCommand(user, resolvedSession, command);
@@ -371,6 +371,7 @@ export class AiChatSessionsService {
 
   private async resolveActiveSessionGameRoomId(
     gameRoomId: string | null,
+    userId: string,
   ): Promise<string | null> {
     if (!gameRoomId) {
       return null;
@@ -381,11 +382,21 @@ export class AiChatSessionsService {
       select: { id: true, status: true },
     });
 
-    if (room?.status === GameRoomStatus.FINISHED) {
+    if (!room || room.status === GameRoomStatus.FINISHED) {
       return null;
     }
 
-    return gameRoomId;
+    const hasMembership = await this.participantRepository.exists({
+      where: {
+        gameRoomId,
+        userId,
+        membershipStatus: In([
+          GameRoomParticipantMembershipStatus.INVITED,
+          GameRoomParticipantMembershipStatus.JOINED,
+        ]),
+      },
+    });
+    return hasMembership ? gameRoomId : null;
   }
 
   private async loadPriorMessagesForIntent(
@@ -992,39 +1003,74 @@ export class AiChatSessionsService {
     return membership?.gameRoomId ?? null;
   }
 
-  private async resolveInvitationForCommand(
-    userId: string,
-    session: AiChatSession,
-    command: RoomJoinCommandDto | UserInviteDenyCommandDto,
-  ): Promise<GameRoomParticipantEntity | null> {
-    if (command.participantId) {
-      return this.participantRepository.findOne({
-        relations: { gameRoom: true },
-        where: { id: command.participantId },
-      });
+  private resolveMessageTarget(
+    command: AiChatCommandDto,
+    message: string,
+  ): AiChatCommandDto {
+    if (
+      command.requestType === AiChatRequestType.USER_INVITE ||
+      command.requestType === AiChatRequestType.GAME_START
+    ) {
+      const { gameRoomId, ...rest } = command;
+      return { ...rest, ...(gameRoomId && message.includes(gameRoomId) ? { gameRoomId } : {}) };
+    }
+    if (
+      command.requestType !== AiChatRequestType.ROOM_JOIN &&
+      command.requestType !== AiChatRequestType.USER_INVITE_DENY
+    ) {
+      return command;
     }
 
-    const gameRoomId = command.gameRoomId ?? session.gameRoomId;
-    if (gameRoomId) {
+    // The selected card is part of the user message, never inferred from history.
+    const selected = message.match(
+      /^게임방 초대(?:를 수락할게요|는 거절할게요)\. \(초대 ID: ([a-zA-Z0-9-]+)\)$/,
+    );
+    if (selected) {
+      return {
+        requestType: message.startsWith('게임방 초대를 수락')
+          ? AiChatRequestType.ROOM_JOIN
+          : AiChatRequestType.USER_INVITE_DENY,
+        participantId: selected[1],
+      };
+    }
+
+    const { gameRoomId, participantId, ...rest } = command;
+    return {
+      ...rest,
+      ...(gameRoomId && message.includes(gameRoomId) ? { gameRoomId } : {}),
+      ...(participantId && message.includes(participantId) ? { participantId } : {}),
+    };
+  }
+
+  private async resolveInvitationForCommand(
+    userId: string,
+    _session: AiChatSession,
+    command: RoomJoinCommandDto | UserInviteDenyCommandDto,
+  ): Promise<GameRoomParticipantEntity | null> {
+    const where = {
+      userId,
+      membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
+      gameRoom: { status: GameRoomStatus.WAITING },
+    };
+    if (command.participantId || command.gameRoomId) {
       return this.participantRepository.findOne({
         relations: { gameRoom: true },
         where: {
-          gameRoomId,
-          userId,
-          membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
+          ...where,
+          ...(command.participantId ? { id: command.participantId } : {}),
+          ...(command.gameRoomId ? { gameRoomId: command.gameRoomId } : {}),
         },
-        order: { createdAt: 'DESC' },
       });
     }
 
-    return this.participantRepository.findOne({
+    // A session may still refer to a previous game. Only a unique, live invitation
+    // can be selected implicitly; do not choose the latest one in ambiguous data.
+    const invitations = await this.participantRepository.find({
       relations: { gameRoom: true },
-      where: {
-        userId,
-        membershipStatus: GameRoomParticipantMembershipStatus.INVITED,
-      },
-      order: { createdAt: 'DESC' },
+      where,
+      take: 2,
     });
+    return invitations.length === 1 ? invitations[0] : null;
   }
 
   private async resolveSelectedMissionTemplateId(
