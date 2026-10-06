@@ -19,6 +19,12 @@ export interface CodeChangePayload {
   occurredAt?: string;
 }
 
+export interface SendTeamChatMessagePayload {
+  gameRoomId: string;
+  content: string;
+  clientMessageId?: string;
+}
+
 export interface TurnSubmitPayload {
   gameRoomId: string;
   userId: string;

@@ -24,6 +24,7 @@ import {
   REALTIME_TURN_SUBMIT_SERVICE,
 } from './service/realtime.constants';
 import { RealtimeEventSupportService } from './service/realtime-event-support.service';
+import { TeamChatModule } from '../team-chat/team-chat.module';
 
 /**
  * Responsibilities: establish WebSocket connections, authenticate join-room,
@@ -37,6 +38,7 @@ import { RealtimeEventSupportService } from './service/realtime-event-support.se
     TurnsModule,
     GameRoomParticipantsModule,
     forwardRef(() => GameRoomsModule),
+    TeamChatModule,
   ],
   providers: [
     RealtimeGateway,
