@@ -833,6 +833,7 @@ function buildLifecycleEvents(input: {
     },
     gameStateUpdatedEvent: {
       gameRoomId: input.room.id,
+      mode: input.room.mode,
       gameState,
       missionState,
       occurredAt,

@@ -17,6 +17,7 @@ import { GameRoomEntity } from '../entity/game-room.entity';
 import {
   AiChatSessionStatus,
   AiGameSessionStatus,
+  GameMode,
   GameRoomParticipantMembershipStatus,
   GameRoomParticipantRole,
   GameRoomStatus,
@@ -87,6 +88,7 @@ export class GameRoomsService {
       const gameRoom = roomRepository.create({
         ownerUserId: input.ownerUserId,
         status: GameRoomStatus.WAITING,
+        mode: GameMode.MULTIPLAYER,
         difficulty: input.difficulty,
         timeLimitSeconds: input.timeLimitSeconds,
         maxStrikeCount: input.maxStrikeCount,
