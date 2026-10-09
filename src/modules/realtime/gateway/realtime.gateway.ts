@@ -4,6 +4,7 @@ import {
   Inject,
   Logger,
   NotFoundException,
+  Optional,
   UnauthorizedException,
 } from '@nestjs/common';
 import {
@@ -40,12 +41,17 @@ import {
   RealtimeFileContentBuffer,
   RealtimeTurnSubmitService,
   RealtimeTurnEditService,
+  SendTeamChatMessagePayload,
   RoomParticipantsUpdatedEvent,
   TurnChangedEvent,
   TurnEvaluatedEvent,
   TurnSubmitEvent,
   TurnSubmitPayload,
 } from '../service/realtime.interfaces';
+import {
+  TeamChatMessageView,
+  TeamChatService,
+} from '@modules/team-chat/service/team-chat.service';
 
 interface SocketSession {
   gameRoomId: string;
@@ -72,7 +78,29 @@ export class RealtimeGateway implements OnGatewayDisconnect {
     private readonly turnSubmitService: RealtimeTurnSubmitService,
     @Inject(REALTIME_SUPPORT_STATE_STORE)
     private readonly supportStateStore: RealtimeSupportStateStore,
+    @Optional() private readonly teamChatService?: TeamChatService,
   ) {}
+
+  @SubscribeMessage(REALTIME_EVENT.SEND_TEAM_CHAT_MESSAGE)
+  async handleTeamChatMessage(
+    @ConnectedSocket() client: WebSocket,
+    @MessageBody() payload: SendTeamChatMessagePayload,
+  ): Promise<void> {
+    const session = this.socketSessions.get(client);
+    if (!this.teamChatService || !session || !this.isValidTeamChatPayload(payload) || payload.gameRoomId !== session.gameRoomId) return;
+    try {
+      const message = await this.teamChatService.createMessage({
+        gameRoomId: session.gameRoomId,
+        userId: session.userId,
+        content: payload.content,
+        clientMessageId: payload.clientMessageId,
+      });
+      this.broadcastToRoom(session.gameRoomId, REALTIME_EVENT.TEAM_CHAT_MESSAGE, message);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'unknown team chat error';
+      this.logger.warn(`Failed to process team chat message: ${message}`);
+    }
+  }
 
   @SubscribeMessage(REALTIME_EVENT.JOIN_ROOM)
   async handleJoinRoom(
@@ -324,7 +352,8 @@ export class RealtimeGateway implements OnGatewayDisconnect {
       | TurnEvaluatedEvent
       | TurnChangedEvent
       | GameStateUpdatedEvent
-      | MissionResultEvent,
+      | MissionResultEvent
+      | TeamChatMessageView,
     excludedClient?: WebSocket,
   ): void {
     this.broadcastToRoom(gameRoomId, event, data, excludedClient);
@@ -341,7 +370,8 @@ export class RealtimeGateway implements OnGatewayDisconnect {
       | TurnEvaluatedEvent
       | TurnChangedEvent
       | GameStateUpdatedEvent
-      | MissionResultEvent,
+      | MissionResultEvent
+      | TeamChatMessageView,
   ): void {
     if (client.readyState !== WebSocket.OPEN) {
       return;
@@ -366,7 +396,8 @@ export class RealtimeGateway implements OnGatewayDisconnect {
       | TurnEvaluatedEvent
       | TurnChangedEvent
       | GameStateUpdatedEvent
-      | MissionResultEvent,
+      | MissionResultEvent
+      | TeamChatMessageView,
     excludedClient?: WebSocket,
   ): void {
     const roomSockets = this.roomSessions.get(gameRoomId);
@@ -427,6 +458,10 @@ export class RealtimeGateway implements OnGatewayDisconnect {
 
   private hasText(value: unknown): value is string {
     return typeof value === 'string' && value.trim().length > 0;
+  }
+
+  private isValidTeamChatPayload(payload: SendTeamChatMessagePayload | undefined): payload is SendTeamChatMessagePayload {
+    return this.hasText(payload?.gameRoomId) && this.hasText(payload.content) && payload.content.trim().length <= 500;
   }
 
   private isValidCodeChangePayload(payload: CodeChangePayload | undefined): payload is CodeChangePayload {

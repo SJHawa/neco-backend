@@ -17,6 +17,8 @@ export const REALTIME_EVENT = {
   TURN_CHANGED: 'turn-changed',
   GAME_STATE_UPDATED: 'game-state-updated',
   MISSION_RESULT: 'mission-result',
+  SEND_TEAM_CHAT_MESSAGE: 'send-team-chat-message',
+  TEAM_CHAT_MESSAGE: 'team-chat-message',
 } as const;
 
 export const REALTIME_CLOSE_CODE = {
