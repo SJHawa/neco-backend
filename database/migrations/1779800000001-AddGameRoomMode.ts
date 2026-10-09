@@ -1,7 +1,7 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddGameRoomMode1779800000000 implements MigrationInterface {
-  name = 'AddGameRoomMode1779800000000';
+export class AddGameRoomMode1779800000001 implements MigrationInterface {
+  name = 'AddGameRoomMode1779800000001';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(`
