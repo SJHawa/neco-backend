@@ -11,7 +11,6 @@ flowchart LR
   subgraph EC2["AWS EC2 (Docker Compose)"]
     FE["web: Nginx + React"] -->|/v1, /ws| BE[backend: NestJS]
     BE --> DB[(PostgreSQL)]
-    BE --> R[(Redis)]
     BE -->|docker.sock| PR[python-runner 컨테이너]
   end
 
@@ -20,7 +19,8 @@ flowchart LR
 
 - HTTPS는 CloudFront에서 끝나고(ACM 인증서), CloudFront → EC2 구간은 HTTP(80)다.
 - EC2 안의 모든 서비스는 `docker-compose.prod.yml` 하나로 관리한다.
-- 외부에 열리는 포트는 `web`의 80번뿐이다. Postgres와 Redis는 compose 내부망에서만 접근한다.
+- 외부에 열리는 포트는 `web`의 80번뿐이다. Postgres는 compose 내부망에서만 접근한다.
+- Redis는 쓰지 않는다. 실시간 턴 상태는 현재 백엔드 메모리에 저장한다(`InMemoryRealtimeSupportStateStore`). 그래서 백엔드를 재시작하면 진행 중인 게임의 턴 상태가 초기화된다.
 - `python-runner`는 상시 실행 서비스가 아니다. 백엔드가 미션마다 `--network none`, CPU와 메모리 제한을 걸어서 띄운다.
 
 | 경로 | 처리 |
