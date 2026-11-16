@@ -32,3 +32,14 @@ To save the generated fixture instead:
 ```bash
 node scripts/generate-test-log.mjs --count 100 --out ./sample.log
 ```
+
+## Validate deployment environment
+
+Check required secrets and deployment values before starting Compose:
+
+```bash
+node scripts/validate-env.mjs .env
+node scripts/validate-env.mjs .env --strict
+```
+
+The command never prints secret values. It only reports missing keys or obvious placeholder values.
