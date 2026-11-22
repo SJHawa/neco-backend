@@ -7,7 +7,7 @@ import {
   UnauthorizedException,
 } from '@nestjs/common';
 import { isUUID } from 'class-validator';
-import { DataSource } from 'typeorm';
+import { DataSource, EntityManager } from 'typeorm';
 import { toSeoulIso } from '@common/utils/date.util';
 import { User } from '@modules/auth/entity/user.entity';
 import { GameRoomParticipantEntity } from '@modules/game-room-participants/entity/game-room-participant.entity';
@@ -30,7 +30,10 @@ export interface GameItemUseResult {
   itemType: GameItemType;
   usedBy: { userId: string; nickname: string };
   remainingQuantity: number;
-  effect: { addedSeconds: 30; deadlineAt: string };
+  effect:
+    | { type: 'TIME_EXTENSION'; addedSeconds: 30; deadlineAt: string }
+    | { type: 'STRIKE_SHIELD'; activeCount: number }
+    | { type: 'TURN_PASS'; nextPlayerId: string; deadlineAt: string };
   occurredAt: string;
 }
 
@@ -41,7 +44,7 @@ export class GameRoomItemsService {
   // The transport must authenticate and check the socket's bound room before calling.
   // This promise resolves only after commit; publication belongs to the caller.
   async useItem(input: UseGameItemInput): Promise<GameItemUseResult> {
-    if (!isUUID(input.gameRoomId) || !isUUID(input.turnId) || input.itemType !== GameItemType.TIME_EXTENSION_30) {
+    if (!isUUID(input.gameRoomId) || !isUUID(input.turnId) || !Object.values(GameItemType).includes(input.itemType)) {
       throw new BadRequestException({ code: 'INVALID_GAME_ITEM_REQUEST', message: 'Invalid game item request.' });
     }
     if (!isUUID(input.userId)) {
@@ -98,8 +101,8 @@ export class GameRoomItemsService {
         where: { gameRoomId: input.gameRoomId, itemType: input.itemType },
         lock: { mode: 'pessimistic_write' },
       });
-      if (!item || item.quantity <= 0) {
-        throw new ConflictException({ code: 'GAME_ITEM_EXHAUSTED', message: 'No time extension items remain in this room.' });
+      if (!item?.unlockedAt || item.quantity <= 0) {
+        throw new ConflictException({ code: 'GAME_ITEM_EXHAUSTED', message: 'This item is locked or exhausted.' });
       }
       const user = await manager.getRepository(User).findOneBy({ id: input.userId });
       if (!user) {
@@ -108,7 +111,11 @@ export class GameRoomItemsService {
 
       item.quantity -= 1;
       item.usedCount += 1;
-      turn.deadlineAt = new Date(turn.deadlineAt.getTime() + 30000);
+      const effect = await this.applyItemEffect({
+        manager,
+        item,
+        turn,
+      });
       await items.save(item);
       await turns.save(turn);
 
@@ -118,9 +125,57 @@ export class GameRoomItemsService {
         itemType: input.itemType,
         usedBy: { userId: user.id, nickname: user.nickname },
         remainingQuantity: item.quantity,
-        effect: { addedSeconds: 30, deadlineAt: toSeoulIso(turn.deadlineAt) },
+        effect,
         occurredAt: toSeoulIso(occurredAt),
       };
     });
+  }
+
+  private async applyItemEffect(input: {
+    manager: EntityManager;
+    item: GameRoomItemEntity;
+    turn: TurnEntity;
+  }): Promise<GameItemUseResult['effect']> {
+    if (input.item.itemType === GameItemType.TIME_EXTENSION_30) {
+      input.turn.deadlineAt = new Date(input.turn.deadlineAt.getTime() + 30_000);
+      return {
+        type: 'TIME_EXTENSION',
+        addedSeconds: 30,
+        deadlineAt: toSeoulIso(input.turn.deadlineAt),
+      };
+    }
+
+    if (input.item.itemType === GameItemType.STRIKE_SHIELD) {
+      input.item.activeCount += 1;
+      return {
+        type: 'STRIKE_SHIELD',
+        activeCount: input.item.activeCount,
+      };
+    }
+
+    const participants = await input.manager.getRepository(GameRoomParticipantEntity).find({
+      where: {
+        gameRoomId: input.turn.gameRoomId,
+        membershipStatus: GameRoomParticipantMembershipStatus.JOINED,
+      },
+      order: { createdAt: 'ASC' },
+    });
+    if (participants.length < 2) {
+      throw new ConflictException({
+        code: 'TURN_PASS_UNAVAILABLE',
+        message: 'Another joined participant is required to pass the turn.',
+      });
+    }
+    const currentIndex = participants.findIndex(
+      (participant) => participant.userId === input.turn.playerUserId,
+    );
+    const nextParticipant = participants[(currentIndex + 1) % participants.length];
+    input.turn.playerUserId = nextParticipant.userId;
+
+    return {
+      type: 'TURN_PASS',
+      nextPlayerId: nextParticipant.userId,
+      deadlineAt: toSeoulIso(input.turn.deadlineAt),
+    };
   }
 }

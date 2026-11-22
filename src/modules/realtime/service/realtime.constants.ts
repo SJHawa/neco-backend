@@ -47,6 +47,7 @@ export const GAME_ITEM_ERROR_MESSAGES = {
   TURN_PLAYER_REQUIRED: 'Only the current turn player can use an item.',
   TURN_NOT_IN_PROGRESS: 'The turn is no longer in progress.',
   TURN_DEADLINE_EXPIRED: 'The turn deadline has elapsed.',
-  GAME_ITEM_EXHAUSTED: 'No time extension items remain in this room.',
+  GAME_ITEM_EXHAUSTED: 'This item is locked or exhausted.',
+  TURN_PASS_UNAVAILABLE: 'Another joined participant is required to pass the turn.',
   GAME_ITEM_INTERNAL_ERROR: 'Unable to confirm item use. Synchronize room state before trying again.',
 } as const;

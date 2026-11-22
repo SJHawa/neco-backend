@@ -1,12 +1,24 @@
-import { Injectable } from '@nestjs/common';
+import {
+  ConflictException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource } from 'typeorm';
-import { MissionResultJudgeStatus } from '@shared/enums';
+import { GameMode, GameRoomStatus, MissionResultJudgeStatus } from '@shared/enums';
+import { GameRoomEntity } from '@modules/game-rooms/entity/game-room.entity';
 import {
   calculateAttemptScore,
   calculateTeamCompletionBonus,
   type RankingScoreBreakdown,
 } from './ranking-score.policy';
-import type { IndividualRankingEntry, TeamRankingEntry } from './rankings.types';
+import type {
+  GameContributionSummary,
+  IndividualRankingEntry,
+  TeamRankingEntry,
+  TeamRankingRegistrationResponse,
+} from './rankings.types';
+import { distributeContributionPercents } from './contribution-percent.policy';
 
 interface RankingAttemptRow {
   gameRoomId: string;
@@ -22,6 +34,7 @@ interface RankingAttemptRow {
   judgeStatus: MissionResultJudgeStatus;
   stepId: string | null;
   missionFinished: boolean | null;
+  teamName: string | null;
 }
 
 interface MutableIndividualRanking {
@@ -43,6 +56,7 @@ interface MutableTeamRanking {
   score: number;
   missionCleared: boolean;
   participants: Map<string, string>;
+  teamName: string | null;
 }
 
 @Injectable()
@@ -50,7 +64,97 @@ export class RankingsService {
   constructor(private readonly dataSource: DataSource) {}
 
   async listIndividualRankings(limit: number): Promise<IndividualRankingEntry[]> {
-    const attempts = await this.loadRankingAttempts();
+    const attempts = await this.loadRankingAttempts(undefined, false);
+    return this.buildIndividualRankings(attempts).slice(0, limit);
+  }
+
+  async getGameContributions(
+    gameRoomId: string,
+    userId: string,
+  ): Promise<GameContributionSummary> {
+    const room = await this.requireAccessibleFinishedMultiplayerRoom(gameRoomId, userId);
+    const attempts = await this.loadRankingAttempts(gameRoomId, false);
+    const individualRankings = this.buildIndividualRankings(attempts);
+    const positiveScoreTotal = individualRankings.reduce(
+      (total, entry) => total + Math.max(0, entry.score),
+      0,
+    );
+    const contributionPercents = distributeContributionPercents(
+      individualRankings.map((entry) => Math.max(0, entry.score)),
+    );
+    const teamRanking = this.buildTeamRankings(attempts)[0];
+
+    return {
+      gameRoomId,
+      teamScore: teamRanking?.score ?? 0,
+      teamName: room.rankingTeamName,
+      rankingRegistered: room.rankingRegisteredAt !== null,
+      canRegisterRanking:
+        room.ownerUserId === userId && room.rankingRegisteredAt === null,
+      contributions: individualRankings.map((entry, index) => ({
+        ...entry,
+        contributionPercent:
+          positiveScoreTotal === 0 ? 0 : contributionPercents[index],
+      })),
+    };
+  }
+
+  async registerTeamRanking(
+    gameRoomId: string,
+    userId: string,
+    teamName: string,
+  ): Promise<TeamRankingRegistrationResponse> {
+    const normalizedTeamName = teamName.trim();
+
+    return this.dataSource.transaction(async (manager) => {
+      const repository = manager.getRepository(GameRoomEntity);
+      const room = await repository.findOne({
+        where: { id: gameRoomId },
+        lock: { mode: 'pessimistic_write' },
+      });
+
+      if (!room) {
+        throw new NotFoundException({
+          code: 'GAME_ROOM_NOT_FOUND',
+          message: 'Game room was not found.',
+        });
+      }
+      if (room.ownerUserId !== userId) {
+        throw new ForbiddenException({
+          code: 'RANKING_OWNER_REQUIRED',
+          message: 'Only the room owner can register the team ranking.',
+        });
+      }
+      if (room.mode !== GameMode.MULTIPLAYER || room.status !== GameRoomStatus.FINISHED) {
+        throw new ConflictException({
+          code: 'RANKING_GAME_NOT_ELIGIBLE',
+          message: 'Only finished multiplayer games can be registered.',
+        });
+      }
+      if (room.rankingRegisteredAt) {
+        throw new ConflictException({
+          code: 'RANKING_ALREADY_REGISTERED',
+          message: 'This game is already registered in the team ranking.',
+        });
+      }
+
+      const registeredAt = new Date();
+      room.rankingTeamName = normalizedTeamName;
+      room.rankingRegisteredBy = userId;
+      room.rankingRegisteredAt = registeredAt;
+      await repository.save(room);
+
+      return {
+        gameRoomId,
+        teamName: normalizedTeamName,
+        registeredAt: registeredAt.toISOString(),
+      };
+    });
+  }
+
+  private buildIndividualRankings(
+    attempts: RankingAttemptRow[],
+  ): IndividualRankingEntry[] {
     const attemptCounts = new Map<string, number>();
     const rankings = new Map<string, MutableIndividualRanking>();
 
@@ -89,7 +193,6 @@ export class RankingsService {
 
     return [...rankings.values()]
       .sort(compareIndividualRankings)
-      .slice(0, limit)
       .map((entry, index) => ({
         rank: index + 1,
         userId: entry.userId,
@@ -108,6 +211,10 @@ export class RankingsService {
 
   async listTeamRankings(limit: number): Promise<TeamRankingEntry[]> {
     const attempts = await this.loadRankingAttempts();
+    return this.buildTeamRankings(attempts).slice(0, limit);
+  }
+
+  private buildTeamRankings(attempts: RankingAttemptRow[]): TeamRankingEntry[] {
     const attemptCounts = new Map<string, number>();
     const rankings = new Map<string, MutableTeamRanking>();
 
@@ -148,10 +255,10 @@ export class RankingsService {
       .sort((left, right) =>
         right.score - left.score || Number(right.missionCleared) - Number(left.missionCleared),
       )
-      .slice(0, limit)
       .map((entry, index) => ({
         rank: index + 1,
         gameRoomId: entry.gameRoomId,
+        teamName: entry.teamName ?? '이름 없는 팀',
         score: entry.score,
         difficulty: entry.difficulty,
         missionCleared: entry.missionCleared,
@@ -163,7 +270,18 @@ export class RankingsService {
       }));
   }
 
-  private loadRankingAttempts(): Promise<RankingAttemptRow[]> {
+  private loadRankingAttempts(
+    gameRoomId?: string,
+    registeredOnly = true,
+  ): Promise<RankingAttemptRow[]> {
+    const conditions = [
+      "gr.status = 'FINISHED'",
+      "gr.mode = 'MULTIPLAYER'",
+      registeredOnly ? 'gr.ranking_registered_at IS NOT NULL' : null,
+      gameRoomId ? 'gr.id = $1' : null,
+    ].filter((condition): condition is string => Boolean(condition));
+    const parameters = gameRoomId ? [gameRoomId] : [];
+
     return this.dataSource.query(`
       SELECT
         mr.game_room_id AS "gameRoomId",
@@ -179,16 +297,56 @@ export class RankingsService {
         mr.judge_status AS "judgeStatus",
         mr.result_payload_json ->> 'stepId' AS "stepId",
         COALESCE((mr.result_payload_json ->> 'isMissionCleared')::boolean, false)
-          AS "missionFinished"
+          AS "missionFinished",
+        gr.ranking_team_name AS "teamName"
       FROM mission_results mr
       INNER JOIN turns t ON t.id = mr.turn_id
       INNER JOIN users u ON u.id = t.player_user_id
       INNER JOIN game_rooms gr ON gr.id = mr.game_room_id
       INNER JOIN game_room_missions gm ON gm.id = mr.mission_id
-      WHERE gr.status = 'FINISHED'
-        AND gr.mode = 'MULTIPLAYER'
+      WHERE ${conditions.join('\n        AND ')}
       ORDER BY mr.occurred_at ASC, t.turn_number ASC
-    `);
+    `, parameters);
+  }
+
+  private async requireAccessibleFinishedMultiplayerRoom(
+    gameRoomId: string,
+    userId: string,
+  ): Promise<GameRoomEntity> {
+    const room = await this.dataSource.getRepository(GameRoomEntity).findOne({
+      where: { id: gameRoomId },
+    });
+
+    if (!room) {
+      throw new NotFoundException({
+        code: 'GAME_ROOM_NOT_FOUND',
+        message: 'Game room was not found.',
+      });
+    }
+    if (room.mode !== GameMode.MULTIPLAYER || room.status !== GameRoomStatus.FINISHED) {
+      throw new ConflictException({
+        code: 'RANKING_GAME_NOT_ELIGIBLE',
+        message: 'Contributions are available for finished multiplayer games only.',
+      });
+    }
+
+    const memberships = await this.dataSource.query(
+      `SELECT 1
+         FROM game_room_participants
+        WHERE game_room_id = $1
+          AND user_id = $2
+          AND membership_status = 'JOINED'
+        LIMIT 1`,
+      [gameRoomId, userId],
+    );
+    if (memberships.length === 0) {
+      throw new ForbiddenException({
+        code: 'FORBIDDEN_RESOURCE_ACCESS',
+        message: 'Only participants can view this game contribution.',
+      });
+    }
+
+    return room;
   }
 }
 
@@ -214,6 +372,7 @@ function createTeamRanking(attempt: RankingAttemptRow): MutableTeamRanking {
     score: 0,
     missionCleared: false,
     participants: new Map<string, string>(),
+    teamName: attempt.teamName,
   };
 }
 

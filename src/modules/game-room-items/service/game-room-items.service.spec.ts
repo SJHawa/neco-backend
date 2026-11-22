@@ -15,22 +15,28 @@ const input = { gameRoomId: roomId, turnId, userId, itemType: GameItemType.TIME_
 describe('GameRoomItemsService', () => {
   const now = new Date('2026-10-10T03:00:00Z');
   let service: GameRoomItemsService;
-  let turn: { id: string; status: TurnStatus; playerUserId: string; deadlineAt: Date };
+  let turn: { id: string; gameRoomId: string; status: TurnStatus; playerUserId: string; deadlineAt: Date };
   let turns: { findOne: jest.Mock; save: jest.Mock };
   let items: { findOne: jest.Mock; save: jest.Mock };
   let rooms: { findOneBy: jest.Mock };
-  let participants: { findOne: jest.Mock };
+  let participants: { findOne: jest.Mock; find: jest.Mock };
   let users: { findOneBy: jest.Mock };
   let transaction: jest.Mock;
   let query: jest.Mock;
 
   beforeEach(() => {
     jest.useFakeTimers().setSystemTime(now);
-    turn = { id: turnId, status: TurnStatus.IN_PROGRESS, playerUserId: userId, deadlineAt: new Date(now.getTime() + 1000) };
+    turn = { id: turnId, gameRoomId: roomId, status: TurnStatus.IN_PROGRESS, playerUserId: userId, deadlineAt: new Date(now.getTime() + 1000) };
     turns = { findOne: jest.fn().mockResolvedValue(turn), save: jest.fn() };
-    items = { findOne: jest.fn().mockResolvedValue({ quantity: 1, usedCount: 0 }), save: jest.fn() };
+    items = { findOne: jest.fn().mockResolvedValue({ itemType: GameItemType.TIME_EXTENSION_30, quantity: 1, usedCount: 0, activeCount: 0, unlockedAt: now }), save: jest.fn() };
     rooms = { findOneBy: jest.fn().mockResolvedValue({ id: roomId, status: 'IN_PROGRESS' }) };
-    participants = { findOne: jest.fn().mockResolvedValue({ userId }) };
+    participants = {
+      findOne: jest.fn().mockResolvedValue({ userId }),
+      find: jest.fn().mockResolvedValue([
+        { userId, createdAt: new Date('2026-10-10T02:00:00Z') },
+        { userId: '00000000-0000-4000-8000-000000000004', createdAt: new Date('2026-10-10T02:01:00Z') },
+      ]),
+    };
     users = { findOneBy: jest.fn().mockResolvedValue({ id: userId, nickname: 'server-name' }) };
     const repositories = new Map<unknown, unknown>([
       [TurnEntity, turns], [GameRoomItemEntity, items], [GameRoomEntity, rooms],
@@ -61,9 +67,9 @@ describe('GameRoomItemsService', () => {
     const result = await pending;
     expect(result).toMatchObject({
       remainingQuantity: 0, usedBy: { userId, nickname: 'server-name' },
-      effect: { addedSeconds: 30, deadlineAt: '2026-10-10T12:00:31.000+09:00' },
+      effect: { type: 'TIME_EXTENSION', addedSeconds: 30, deadlineAt: '2026-10-10T12:00:31.000+09:00' },
     });
-    expect(items.save).toHaveBeenCalledWith({ quantity: 0, usedCount: 1 });
+    expect(items.save).toHaveBeenCalledWith(expect.objectContaining({ quantity: 0, usedCount: 1 }));
     expect(turns.findOne).toHaveBeenNthCalledWith(1, {
       where: { id: turnId, gameRoomId: roomId }, lock: { mode: 'pessimistic_write' },
     });
@@ -76,7 +82,7 @@ describe('GameRoomItemsService', () => {
 
   it.each([
     ['invalid room ID', { gameRoomId: 'bad' }, 'INVALID_GAME_ITEM_REQUEST'],
-    ['unsupported item', { itemType: 'TURN_PASS' }, 'INVALID_GAME_ITEM_REQUEST'],
+    ['unsupported item', { itemType: 'UNKNOWN_ITEM' }, 'INVALID_GAME_ITEM_REQUEST'],
     ['missing actor', { userId: '' }, 'AUTH_REQUIRED'],
   ])('rejects %s before opening a transaction', async (_label, overrides, code) => {
     await expect(service.useItem({ ...input, ...overrides } as typeof input)).rejects.toMatchObject({ response: { code } });
@@ -93,7 +99,7 @@ describe('GameRoomItemsService', () => {
     if (code === 'TURN_MISMATCH') turns.findOne.mockResolvedValue(null);
     if (code === 'TURN_NOT_IN_PROGRESS') turn.status = TurnStatus.SUBMITTED;
     if (code === 'TURN_PLAYER_REQUIRED') turn.playerUserId = 'another-user';
-    if (code === 'GAME_ITEM_EXHAUSTED') items.findOne.mockResolvedValue({ quantity: 0, usedCount: 1 });
+    if (code === 'GAME_ITEM_EXHAUSTED') items.findOne.mockResolvedValue({ quantity: 0, usedCount: 1, unlockedAt: now });
     await expect(service.useItem(input)).rejects.toMatchObject({ response: { code } });
     expect(items.save).not.toHaveBeenCalled();
     expect(turns.save).not.toHaveBeenCalled();
@@ -128,5 +134,41 @@ describe('GameRoomItemsService', () => {
     });
     await expect(service.useItem(input)).rejects.toMatchObject({ response: { code: 'TURN_DEADLINE_EXPIRED' } });
     expect(items.save).not.toHaveBeenCalled();
+  });
+
+  it('activates one shared strike shield without changing the deadline', async () => {
+    items.findOne.mockResolvedValue({
+      itemType: GameItemType.STRIKE_SHIELD,
+      quantity: 1,
+      usedCount: 0,
+      activeCount: 0,
+      unlockedAt: now,
+    });
+    const deadlineAt = turn.deadlineAt;
+    await expect(service.useItem({ ...input, itemType: GameItemType.STRIKE_SHIELD })).resolves.toMatchObject({
+      itemType: GameItemType.STRIKE_SHIELD,
+      remainingQuantity: 0,
+      effect: { type: 'STRIKE_SHIELD', activeCount: 1 },
+    });
+    expect(turn.deadlineAt).toBe(deadlineAt);
+    expect(items.save).toHaveBeenCalledWith(expect.objectContaining({ activeCount: 1 }));
+  });
+
+  it('passes the same turn to the next joined participant', async () => {
+    const nextPlayerId = '00000000-0000-4000-8000-000000000004';
+    items.findOne.mockResolvedValue({
+      itemType: GameItemType.TURN_PASS,
+      quantity: 1,
+      usedCount: 0,
+      activeCount: 0,
+      unlockedAt: now,
+    });
+    await expect(service.useItem({ ...input, itemType: GameItemType.TURN_PASS })).resolves.toMatchObject({
+      itemType: GameItemType.TURN_PASS,
+      remainingQuantity: 0,
+      effect: { type: 'TURN_PASS', nextPlayerId },
+    });
+    expect(turn.playerUserId).toBe(nextPlayerId);
+    expect(turns.save).toHaveBeenCalledWith(expect.objectContaining({ id: turnId, playerUserId: nextPlayerId }));
   });
 });

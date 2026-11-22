@@ -102,7 +102,11 @@ export class RealtimeGateway implements OnGatewayDisconnect {
     const correlation = {
       gameRoomId: typeof candidate.gameRoomId === 'string' && isUUID(candidate.gameRoomId) ? candidate.gameRoomId : null,
       turnId: typeof candidate.turnId === 'string' && isUUID(candidate.turnId) ? candidate.turnId : null,
-      itemType: candidate.itemType === GameItemType.TIME_EXTENSION_30 ? GameItemType.TIME_EXTENSION_30 : null,
+      itemType:
+        typeof candidate.itemType === 'string' &&
+        Object.values(GameItemType).includes(candidate.itemType as GameItemType)
+          ? candidate.itemType as GameItemType
+          : null,
     };
     const reject = (code: GameItemErrorCode) => this.sendGameItemEvent(client, REALTIME_EVENT.GAME_ITEM_ERROR, {
       ...correlation, code, message: GAME_ITEM_ERROR_MESSAGES[code], occurredAt: toSeoulIso(new Date()),
@@ -139,6 +143,14 @@ export class RealtimeGateway implements OnGatewayDisconnect {
         reject('GAME_ITEM_INTERNAL_ERROR');
       }
       return;
+    }
+
+    if (result.effect.type === 'TURN_PASS') {
+      await this.supportStateStore.saveCurrentTurnState({
+        gameRoomId: result.gameRoomId,
+        currentTurnId: result.turnId,
+        currentTurnUserId: result.effect.nextPlayerId,
+      });
     }
 
     // The use transaction has committed. Delivery failures must never retry use or report rollback.

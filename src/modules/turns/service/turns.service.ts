@@ -1,4 +1,6 @@
 import { loadGameItemState } from '@modules/game-room-items/game-item-state';
+import { GameItemUnlockService } from '@modules/game-room-items/service/game-item-unlock.service';
+import { GameRoomItemEntity } from '@modules/game-room-items/entity/game-room-item.entity';
 import {
   ConflictException,
   ForbiddenException,
@@ -35,6 +37,7 @@ import {
   GameRoomMissionStepStatus,
   GameRoomParticipantMembershipStatus,
   GameRoomStatus,
+  GameItemType,
   MissionResultJudgeStatus,
   TurnStatus,
 } from '@shared/enums';
@@ -116,6 +119,7 @@ interface SnapshotExecutionOutcome {
 @Injectable()
 export class TurnsService {
   private readonly logger = new Logger(TurnsService.name);
+  private readonly gameItemUnlockService = new GameItemUnlockService();
 
   constructor(
     private readonly configService: ConfigService,
@@ -533,6 +537,7 @@ export class TurnsService {
     let nextTurn: TurnEntity | null = null;
     let missionFinished = false;
     let strikeCount = mission.strikeCount;
+    let strikeProtected = false;
 
     if (judgeStatus === MissionResultJudgeStatus.PASSED) {
       const completed =
@@ -559,15 +564,27 @@ export class TurnsService {
         room = await roomRepository.save(room);
       }
     } else if (judgeStatus === MissionResultJudgeStatus.FAILED) {
-      const failedAttempt = await this.gameRoomMissionsService.recordFailedAttempt({
-        manager: input.manager,
-        gameRoomMissionId: mission.id,
-        strikeLimit: room.maxStrikeCount,
+      const itemRepository = input.manager.getRepository(GameRoomItemEntity);
+      const shield = await itemRepository.findOne({
+        where: { gameRoomId: room.id, itemType: GameItemType.STRIKE_SHIELD },
+        lock: { mode: 'pessimistic_write' },
       });
-      mission = failedAttempt.mission;
-      currentStep = failedAttempt.currentStep;
-      missionFinished = failedAttempt.missionFinished;
-      strikeCount = mission.strikeCount;
+      strikeProtected = Boolean(shield && shield.activeCount > 0);
+
+      if (shield && strikeProtected) {
+        shield.activeCount -= 1;
+        await itemRepository.save(shield);
+      } else {
+        const failedAttempt = await this.gameRoomMissionsService.recordFailedAttempt({
+          manager: input.manager,
+          gameRoomMissionId: mission.id,
+          strikeLimit: room.maxStrikeCount,
+        });
+        mission = failedAttempt.mission;
+        currentStep = failedAttempt.currentStep;
+        missionFinished = failedAttempt.missionFinished;
+        strikeCount = mission.strikeCount;
+      }
 
       if (!missionFinished && !input.suppressNextTurnCreation) {
         if (currentStep.status === GameRoomMissionStepStatus.READY) {
@@ -599,6 +616,15 @@ export class TurnsService {
       strikeCount,
       missionFinished,
     });
+    missionResultPayload.strikeProtected = strikeProtected;
+
+    missionResultPayload.unlockedItems =
+      await this.gameItemUnlockService.unlockAfterJudgment({
+        manager: input.manager,
+        gameRoomId: room.id,
+        judgeStatus,
+        occurredAt: input.occurredAt,
+      });
 
     await this.missionResultsService.createMissionResult({
       manager: input.manager,
