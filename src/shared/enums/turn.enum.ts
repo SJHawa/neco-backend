@@ -1,4 +1,5 @@
 export enum TurnStatus {
+  READY = 'READY',
   IN_PROGRESS = 'IN_PROGRESS',
   SUBMITTED = 'SUBMITTED',
   TIMEOUT = 'TIMEOUT',

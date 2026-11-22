@@ -1,5 +1,7 @@
 import { Injectable } from '@nestjs/common';
+import { toSeoulIso } from '@common/utils/date.util';
 import { GameRoomMissionsService } from '@modules/game-room-missions/service/game-room-missions.service';
+import { TurnsService } from '@modules/turns/service/turns.service';
 import { GameMode } from '@shared/enums';
 import { GameStartFlowService } from './game-start-flow.service';
 import { GameRoomsService } from './game-rooms.service';
@@ -17,6 +19,7 @@ export class PracticeRoomsService {
     private readonly gameRoomMissionsService: GameRoomMissionsService,
     private readonly gameRoomsService: GameRoomsService,
     private readonly gameStartFlowService: GameStartFlowService,
+    private readonly turnsService: TurnsService,
   ) {}
 
   async createAndStart(input: {
@@ -49,5 +52,23 @@ export class PracticeRoomsService {
       });
       throw error;
     }
+  }
+
+  async startTurn(input: { ownerUserId: string; gameRoomId: string }) {
+    const result = await this.turnsService.startReadyPracticeTurn({
+      gameRoomId: input.gameRoomId,
+      userId: input.ownerUserId,
+    });
+
+    return {
+      turnId: result.turn.id,
+      turnNumber: result.turn.turnNumber,
+      currentPlayerId: result.turn.playerUserId,
+      startedAt: toSeoulIso(result.turn.startedAt),
+      deadlineAt: toSeoulIso(result.turn.deadlineAt),
+      timeLimitSeconds: result.timeLimitSeconds,
+      remainingTimeSeconds: result.timeLimitSeconds,
+      status: result.turn.status,
+    };
   }
 }

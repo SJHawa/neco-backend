@@ -252,6 +252,7 @@ export class GameRoomsService {
           gameRoomId: gameRoom.id,
           missionId: gameRoomMission.id,
           timeLimitSeconds: gameRoom.timeLimitSeconds,
+          startPaused: gameRoom.mode === GameMode.PRACTICE,
         });
         const currentStep =
           await this.gameRoomMissionsService.transitionCurrentStepToInProgress({

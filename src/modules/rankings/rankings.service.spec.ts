@@ -1,5 +1,6 @@
 import { DataSource } from 'typeorm';
-import { MissionResultJudgeStatus } from '@shared/enums';
+import { GameMode, GameRoomStatus, MissionResultJudgeStatus } from '@shared/enums';
+import { GameRoomEntity } from '@modules/game-rooms/entity/game-room.entity';
 import { RankingsService } from './rankings.service';
 
 describe('RankingsService', () => {
@@ -95,6 +96,44 @@ describe('RankingsService', () => {
         firstAttemptClears: 1,
       }),
     ]);
+  });
+
+  it('allows a former participant to view contributions after the game finishes', async () => {
+    const finishedRoom = {
+      id: 'room-1',
+      mode: GameMode.MULTIPLAYER,
+      status: GameRoomStatus.FINISHED,
+      ownerUserId: 'user-1',
+      rankingTeamName: null,
+      rankingRegisteredAt: null,
+    } as GameRoomEntity;
+    const finishedGameQuery = jest.fn(async (sql: string) => {
+      if (sql.includes('FROM game_room_participants')) {
+        return sql.includes("membership_status IN ('JOINED', 'LEFT')")
+          ? [{ exists: 1 }]
+          : [];
+      }
+
+      return [];
+    });
+    const finishedGameService = new RankingsService({
+      getRepository: jest.fn(() => ({
+        findOne: jest.fn().mockResolvedValue(finishedRoom),
+      })),
+      query: finishedGameQuery,
+    } as unknown as DataSource);
+
+    await expect(
+      finishedGameService.getGameContributions('room-1', 'user-1'),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        gameRoomId: 'room-1',
+        contributions: [],
+      }),
+    );
+    expect(finishedGameQuery.mock.calls[0][0]).toContain(
+      "membership_status IN ('JOINED', 'LEFT')",
+    );
   });
 
   function attempt(

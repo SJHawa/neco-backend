@@ -37,6 +37,7 @@ import {
   GameRoomMissionStepStatus,
   GameRoomParticipantMembershipStatus,
   GameRoomStatus,
+  GameMode,
   GameItemType,
   MissionResultJudgeStatus,
   TurnStatus,
@@ -66,6 +67,12 @@ export interface CreateInitialTurnInput {
   manager: EntityManager;
   gameRoomId: string;
   missionId: string;
+  timeLimitSeconds: number;
+  startPaused?: boolean;
+}
+
+export interface StartReadyPracticeTurnResult {
+  turn: TurnEntity;
   timeLimitSeconds: number;
 }
 
@@ -160,13 +167,102 @@ export class TurnsService {
       missionId: input.missionId,
       playerUserId: joinedParticipants[0].userId,
       turnNumber: 1,
-      status: TurnStatus.IN_PROGRESS,
+      status: input.startPaused ? TurnStatus.READY : TurnStatus.IN_PROGRESS,
       startedAt,
       deadlineAt: new Date(startedAt.getTime() + input.timeLimitSeconds * 1000),
       endedAt: null,
     });
 
     return turnRepository.save(firstTurn);
+  }
+
+  async startReadyPracticeTurn(input: {
+    gameRoomId: string;
+    userId: string;
+  }): Promise<StartReadyPracticeTurnResult> {
+    return this.dataSource.transaction(async (manager) => {
+      const roomRepository = manager.getRepository(GameRoomEntity);
+      const turnRepository = manager.getRepository(TurnEntity);
+      const room = await roomRepository
+        .createQueryBuilder('room')
+        .where('room.id = :gameRoomId', { gameRoomId: input.gameRoomId })
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!room) {
+        throw new NotFoundException({
+          code: 'GAME_ROOM_NOT_FOUND',
+          message: 'Game room was not found.',
+        });
+      }
+
+      if (
+        room.mode !== GameMode.PRACTICE ||
+        room.ownerUserId !== input.userId
+      ) {
+        throw new ForbiddenException({
+          code: 'PRACTICE_ROOM_OWNER_REQUIRED',
+          message: 'Only the practice room owner can start the turn.',
+        });
+      }
+
+      if (room.status !== GameRoomStatus.IN_PROGRESS) {
+        throw new ConflictException({
+          code: 'GAME_ROOM_NOT_IN_PROGRESS',
+          message: 'Practice room is not in progress.',
+        });
+      }
+
+      const readyTurn = await turnRepository
+        .createQueryBuilder('turn')
+        .where('turn.gameRoomId = :gameRoomId', { gameRoomId: room.id })
+        .andWhere('turn.status = :status', { status: TurnStatus.READY })
+        .orderBy('turn.turnNumber', 'DESC')
+        .setLock('pessimistic_write')
+        .getOne();
+
+      if (!readyTurn) {
+        const activeTurn = await turnRepository.findOne({
+          where: {
+            gameRoomId: room.id,
+            playerUserId: input.userId,
+            status: TurnStatus.IN_PROGRESS,
+          },
+          order: { turnNumber: 'DESC' },
+        });
+
+        if (activeTurn) {
+          return {
+            turn: activeTurn,
+            timeLimitSeconds: room.timeLimitSeconds,
+          };
+        }
+
+        throw new ConflictException({
+          code: 'PRACTICE_TURN_NOT_READY',
+          message: 'Practice turn is not ready to start.',
+        });
+      }
+
+      if (readyTurn.playerUserId !== input.userId) {
+        throw new ForbiddenException({
+          code: 'TURN_PLAYER_REQUIRED',
+          message: 'Only the current turn player can start this turn.',
+        });
+      }
+
+      const startedAt = new Date();
+      readyTurn.status = TurnStatus.IN_PROGRESS;
+      readyTurn.startedAt = startedAt;
+      readyTurn.deadlineAt = new Date(
+        startedAt.getTime() + room.timeLimitSeconds * 1000,
+      );
+
+      return {
+        turn: await turnRepository.save(readyTurn),
+        timeLimitSeconds: room.timeLimitSeconds,
+      };
+    });
   }
 
   async submitTurn(input: SubmitTurnLifecycleInput): Promise<TurnLifecycleResult> {

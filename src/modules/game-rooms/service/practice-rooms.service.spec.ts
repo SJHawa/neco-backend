@@ -1,6 +1,7 @@
 import { ConflictException, NotFoundException } from '@nestjs/common';
 import { GameRoomMissionsService } from '@modules/game-room-missions/service/game-room-missions.service';
 import { GameMode, GameRoomStatus } from '@shared/enums';
+import { TurnsService } from '@modules/turns/service/turns.service';
 import { GameStartFlowService } from './game-start-flow.service';
 import { GameRoomsService } from './game-rooms.service';
 import { PracticeRoomsService } from './practice-rooms.service';
@@ -13,6 +14,7 @@ describe('PracticeRoomsService', () => {
     Pick<GameRoomsService, 'createRoom' | 'discardFailedPracticeRoomStart'>
   >;
   let gameStartFlowService: jest.Mocked<Pick<GameStartFlowService, 'startGame'>>;
+  let turnsService: jest.Mocked<Pick<TurnsService, 'startReadyPracticeTurn'>>;
   let service: PracticeRoomsService;
 
   beforeEach(() => {
@@ -30,11 +32,41 @@ describe('PracticeRoomsService', () => {
     gameStartFlowService = {
       startGame: jest.fn().mockResolvedValue({} as never),
     };
+    turnsService = {
+      startReadyPracticeTurn: jest.fn().mockResolvedValue({
+        turn: {
+          id: 'turn-1',
+          turnNumber: 1,
+          playerUserId: 'user-1',
+          startedAt: new Date('2026-11-23T01:00:00.000Z'),
+          deadlineAt: new Date('2026-11-23T01:00:30.000Z'),
+          status: 'IN_PROGRESS',
+        },
+        timeLimitSeconds: 30,
+      } as never),
+    };
     service = new PracticeRoomsService(
       gameRoomMissionsService as never,
       gameRoomsService as never,
       gameStartFlowService as never,
+      turnsService as never,
     );
+  });
+
+  it('starts the paused first turn only after the practice introduction', async () => {
+    await expect(
+      service.startTurn({ ownerUserId: 'user-1', gameRoomId: 'room-1' }),
+    ).resolves.toMatchObject({
+      turnId: 'turn-1',
+      timeLimitSeconds: 30,
+      remainingTimeSeconds: 30,
+      status: 'IN_PROGRESS',
+    });
+
+    expect(turnsService.startReadyPracticeTurn).toHaveBeenCalledWith({
+      gameRoomId: 'room-1',
+      userId: 'user-1',
+    });
   });
 
   it('creates and immediately starts a one-person practice room', async () => {

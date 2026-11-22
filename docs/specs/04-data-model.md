@@ -104,7 +104,8 @@ Ephemeral or cache-like:
 
 ## ERD Notes to Preserve
 
-- `turns.status` must use `IN_PROGRESS | SUBMITTED | TIMEOUT`.
+- `turns.status` must use `READY | IN_PROGRESS | SUBMITTED | TIMEOUT`.
+- `READY` is used only for a newly created personal-practice turn while its tutorial and countdown are visible. Its deadline is not authoritative until the server transitions it to `IN_PROGRESS`.
 - `game_room_participants.membership_status` must encode invite lifecycle.
 - `game_room_missions.current_step_id` points to the active room mission step.
 - `executions` ties runtime work back to room, mission, turn, and user context.

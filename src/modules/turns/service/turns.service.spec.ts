@@ -33,6 +33,61 @@ import { TurnsService } from './turns.service';
 
 describe('TurnsService', () => {
   afterEach(() => jest.useRealTimers());
+
+  it('starts a ready personal-practice turn with a fresh server deadline', async () => {
+    jest.useFakeTimers().setSystemTime(new Date('2026-11-23T03:00:00.000Z'));
+    const room = {
+      ...createRoom(),
+      mode: GameMode.PRACTICE,
+      ownerUserId: 'user-1',
+      status: GameRoomStatus.IN_PROGRESS,
+      timeLimitSeconds: 30,
+    } as GameRoomEntity;
+    const readyTurn = {
+      ...createTurn(),
+      playerUserId: 'user-1',
+      status: TurnStatus.READY,
+    } as TurnEntity;
+    const roomQueryBuilder = createSingleResultQueryBuilder(room);
+    const turnQueryBuilder = createSingleResultQueryBuilder(readyTurn);
+    const turnRepository = {
+      createQueryBuilder: jest.fn(() => turnQueryBuilder),
+      findOne: jest.fn(),
+      save: jest.fn(async (turn: TurnEntity) => turn),
+    };
+    const manager = {
+      getRepository: jest.fn((entity) =>
+        entity === GameRoomEntity
+          ? { createQueryBuilder: jest.fn(() => roomQueryBuilder) }
+          : turnRepository,
+      ),
+    };
+    const dataSource = {
+      transaction: jest.fn(async (callback: (value: typeof manager) => unknown) =>
+        callback(manager),
+      ),
+    } as unknown as DataSource;
+    const service = new TurnsService(
+      {} as ConfigService,
+      dataSource,
+      {} as GameRoomMissionsService,
+      {} as ExecutionsService,
+      {} as MissionResultsService,
+      {} as LlmMissionFeedbackGeneratorPort,
+      {} as AiGameSessionsService,
+    );
+
+    const result = await service.startReadyPracticeTurn({
+      gameRoomId: room.id,
+      userId: room.ownerUserId,
+    });
+
+    expect(result.turn.status).toBe(TurnStatus.IN_PROGRESS);
+    expect(result.turn.startedAt).toEqual(new Date('2026-11-23T03:00:00.000Z'));
+    expect(result.turn.deadlineAt).toEqual(new Date('2026-11-23T03:00:30.000Z'));
+    expect(turnRepository.save).toHaveBeenCalledWith(readyTurn);
+  });
+
   it('rejects a stale expiration candidate using the deadline read after locking', async () => {
     jest.useFakeTimers().setSystemTime(new Date('2026-05-26T01:00:31.000Z'));
     const turn = createTurn();
@@ -2391,6 +2446,23 @@ describe('TurnsService', () => {
     expect(aiGameSessionsService.appendRealtimeEvent).toHaveBeenCalled();
   });
 });
+
+function createSingleResultQueryBuilder<T>(result: T) {
+  const queryBuilder = {
+    where: jest.fn(),
+    andWhere: jest.fn(),
+    orderBy: jest.fn(),
+    setLock: jest.fn(),
+    getOne: jest.fn().mockResolvedValue(result),
+  };
+
+  queryBuilder.where.mockReturnValue(queryBuilder);
+  queryBuilder.andWhere.mockReturnValue(queryBuilder);
+  queryBuilder.orderBy.mockReturnValue(queryBuilder);
+  queryBuilder.setLock.mockReturnValue(queryBuilder);
+
+  return queryBuilder;
+}
 
 function createRoom(): GameRoomEntity {
   return {
