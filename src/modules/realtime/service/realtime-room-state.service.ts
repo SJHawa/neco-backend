@@ -129,7 +129,7 @@ export class RealtimeRoomStateService {
     const currentTurn = await manager.getRepository(TurnEntity).findOne({
       where: {
         gameRoomId,
-        status: TurnStatus.IN_PROGRESS,
+        status: In([TurnStatus.READY, TurnStatus.IN_PROGRESS]),
       },
       order: {
         turnNumber: 'DESC',
@@ -195,12 +195,15 @@ function buildInProgressGameState(
           startedAt: toSeoulIso(currentTurn.startedAt),
           deadlineAt: toSeoulIso(currentTurn.deadlineAt),
           timeLimitSeconds: room.timeLimitSeconds,
-          remainingTimeSeconds: Math.max(
-            0,
-            Math.ceil(
-              (currentTurn.deadlineAt.getTime() - Date.now()) / 1000,
-            ),
-          ),
+          remainingTimeSeconds:
+            currentTurn.status === TurnStatus.READY
+              ? room.timeLimitSeconds
+              : Math.max(
+                  0,
+                  Math.ceil(
+                    (currentTurn.deadlineAt.getTime() - Date.now()) / 1000,
+                  ),
+                ),
           status: currentTurn.status,
         }
       : null,

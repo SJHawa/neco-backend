@@ -105,6 +105,8 @@ The server authoritatively performs:
 11. include enough state for gameplay entry and mission-introduction modal display on the client
 12. include `missionState.projectStructure.files[*].fileUrl` so the client can fetch initial file contents for editor setup
 
+For personal practice, step 8 creates the initial turn as `READY`. The client shows the first-use spotlight tutorial and then the start countdown while the turn remains paused. After the countdown, the owner calls `POST /v1/practice-rooms/{gameRoomId}/start-turn`; the server atomically changes the turn to `IN_PROGRESS` and assigns a fresh authoritative deadline. Reconnect snapshots must include the `READY` turn so this introduction flow can resume safely.
+
 ## Code Sync Pipeline
 
 - only the current turn player may edit

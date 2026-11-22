@@ -90,7 +90,7 @@ describe('RealtimeRoomStateService', () => {
         gameRoomId: 'room-1',
         playerUserId: 'user-1',
         turnNumber: 1,
-        status: TurnStatus.IN_PROGRESS,
+        status: TurnStatus.READY,
         startedAt: new Date('2026-06-01T10:00:00+09:00'),
         deadlineAt: new Date('2026-06-01T10:00:30+09:00'),
       } as TurnEntity),
@@ -132,7 +132,35 @@ describe('RealtimeRoomStateService', () => {
       where: { id: 'template-1' },
     });
     expect(dataSource.transaction).toHaveBeenCalledWith('REPEATABLE READ', expect.any(Function));
-    expect(event.gameState.items).toEqual([{ itemType: 'TIME_EXTENSION_30', remainingQuantity: 0 }]);
+    expect(event.gameState.items).toEqual([
+      {
+        itemType: 'TIME_EXTENSION_30',
+        remainingQuantity: 0,
+        unlocked: false,
+        unlockReason: null,
+        activeCount: 0,
+      },
+      {
+        itemType: 'STRIKE_SHIELD',
+        remainingQuantity: 0,
+        unlocked: false,
+        unlockReason: null,
+        activeCount: 0,
+      },
+      {
+        itemType: 'TURN_PASS',
+        remainingQuantity: 0,
+        unlocked: false,
+        unlockReason: null,
+        activeCount: 0,
+      },
+    ]);
+    expect(event.gameState.turnState).toEqual(
+      expect.objectContaining({
+        status: TurnStatus.READY,
+        remainingTimeSeconds: 30,
+      }),
+    );
     expect(event.missionState).toEqual(
       expect.objectContaining({
         missionId: 'mission-1',

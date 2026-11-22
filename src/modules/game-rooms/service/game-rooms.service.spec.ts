@@ -412,6 +412,7 @@ describe('GameRoomsService', () => {
       gameRoomId: 'room-1',
       missionId: 'mission-1',
       timeLimitSeconds: 30,
+      startPaused: mode === GameMode.PRACTICE,
     });
     expect(
       gameRoomMissionsService.transitionCurrentStepToInProgress,

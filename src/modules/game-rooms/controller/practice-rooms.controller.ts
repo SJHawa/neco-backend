@@ -1,4 +1,4 @@
-import { Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, ParseUUIDPipe, Post, UseGuards } from '@nestjs/common';
 import { CurrentUserId } from '@common/decorators/current-user-id.decorator';
 import { AuthenticatedRequestGuard } from '@common/guards/authenticated-request.guard';
 import { CreatePracticeRoomDto } from '../dto/create-practice-room.dto';
@@ -21,5 +21,18 @@ export class PracticeRoomsController {
     });
 
     return { success: true };
+  }
+
+  @Post(':gameRoomId/start-turn')
+  async startPracticeTurn(
+    @CurrentUserId() userId: string,
+    @Param('gameRoomId', ParseUUIDPipe) gameRoomId: string,
+  ) {
+    const turnState = await this.practiceRoomsService.startTurn({
+      ownerUserId: userId,
+      gameRoomId,
+    });
+
+    return { success: true, turnState };
   }
 }

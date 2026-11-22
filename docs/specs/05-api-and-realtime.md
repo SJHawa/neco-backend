@@ -123,6 +123,10 @@ Main entry contract notes:
 ### Game Start
 
 - `POST /v1/game-rooms/{gameRoomId}/start`
+- `POST /v1/practice-rooms/{gameRoomId}/start-turn`
+  - the authenticated practice-room owner starts the initial `READY` turn after the client tutorial and countdown
+  - returns `{ success: true, turnState }` with a server-generated `startedAt`, `deadlineAt`, and `status: IN_PROGRESS`
+  - repeated requests after a successful start return the same active turn without resetting its deadline
 
 ### Hint
 
