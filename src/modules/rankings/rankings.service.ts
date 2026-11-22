@@ -335,7 +335,7 @@ export class RankingsService {
          FROM game_room_participants
         WHERE game_room_id = $1
           AND user_id = $2
-          AND membership_status = 'JOINED'
+          AND membership_status IN ('JOINED', 'LEFT')
         LIMIT 1`,
       [gameRoomId, userId],
     );
