@@ -12,7 +12,7 @@ const otherRoom = '00000000-0000-4000-8000-000000000004';
 const request = { gameRoomId: roomId, turnId, itemType: GameItemType.TIME_EXTENSION_30 };
 const success: GameItemUseResult = {
   ...request, usedBy: { userId, nickname: 'server-name' }, remainingQuantity: 0,
-  effect: { addedSeconds: 30, deadlineAt: '2026-10-10T12:01:00.000+09:00' },
+  effect: { type: 'TIME_EXTENSION', addedSeconds: 30, deadlineAt: '2026-10-10T12:01:00.000+09:00' },
   occurredAt: '2026-10-10T12:00:20.000+09:00',
 };
 const socket = () => ({ readyState: WebSocket.OPEN, send: jest.fn(), close: jest.fn() });
@@ -67,7 +67,7 @@ describe('Realtime game items', () => {
     expect(frames(peer)[0].event).toBe('game-item-used');
   });
 
-  it.each([null, [], {}, 'invalid', { ...request, turnId: 1 }, { ...request, itemType: 'TURN_PASS' }])(
+  it.each([null, [], {}, 'invalid', { ...request, turnId: 1 }, { ...request, itemType: 'UNKNOWN_ITEM' }])(
     'rejects malformed payload %p without calling the service', async (payload) => {
       await send(payload);
       expect(useItem).not.toHaveBeenCalled();

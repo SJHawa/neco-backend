@@ -293,9 +293,13 @@ describe('TurnsService', () => {
     });
     expect(result.missionResultEvent).toBeNull();
     expect(result.gameStateUpdatedEvent.gameState).toMatchObject({
-      items: [{ itemType: 'TIME_EXTENSION_30', remainingQuantity: 1 }],
       status: GameRoomStatus.IN_PROGRESS,
     });
+    expect(result.gameStateUpdatedEvent.gameState.items).toEqual(expect.arrayContaining([
+      expect.objectContaining({ itemType: 'TIME_EXTENSION_30', remainingQuantity: 1 }),
+      expect.objectContaining({ itemType: 'STRIKE_SHIELD' }),
+      expect.objectContaining({ itemType: 'TURN_PASS' }),
+    ]));
     expect(result.gameStateUpdatedEvent.missionState).toMatchObject({
       title: 'Calculator Relay',
       description: 'Complete the calculator mission.',
@@ -2593,7 +2597,19 @@ function createManager(input: {
       }
 
       if (entity === GameRoomItemEntity) {
-        return { findOne: jest.fn().mockResolvedValue(input.itemQuantity === undefined ? null : { quantity: input.itemQuantity }) };
+        return {
+          findOne: jest.fn(async ({ where }) => input.itemQuantity === undefined
+            ? null
+            : {
+                itemType: where.itemType,
+                quantity: input.itemQuantity,
+                usedCount: 0,
+                activeCount: 0,
+                unlockedAt: null,
+                unlockReason: null,
+              }),
+          save: jest.fn(async (value) => value),
+        };
       }
       if (entity === TurnEntity) {
         return {

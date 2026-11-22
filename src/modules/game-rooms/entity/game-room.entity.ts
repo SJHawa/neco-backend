@@ -31,6 +31,15 @@ export class GameRoomEntity extends BaseEntity {
   @Column({ type: 'integer', name: 'max_participants' })
   maxParticipants!: number;
 
+  @Column({ type: 'text', name: 'ranking_team_name', nullable: true })
+  rankingTeamName!: string | null;
+
+  @Column({ type: 'uuid', name: 'ranking_registered_by', nullable: true })
+  rankingRegisteredBy!: string | null;
+
+  @Column({ type: 'timestamptz', name: 'ranking_registered_at', nullable: true })
+  rankingRegisteredAt!: Date | null;
+
   @OneToMany(() => GameRoomParticipantEntity, (participant) => participant.gameRoom)
   participants!: GameRoomParticipantEntity[];
 

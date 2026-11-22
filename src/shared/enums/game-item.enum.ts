@@ -1,3 +1,5 @@
 export enum GameItemType {
   TIME_EXTENSION_30 = 'TIME_EXTENSION_30',
+  STRIKE_SHIELD = 'STRIKE_SHIELD',
+  TURN_PASS = 'TURN_PASS',
 }

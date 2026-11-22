@@ -20,6 +20,15 @@ export class GameRoomItemEntity extends BaseEntity {
   @Column({ name: 'used_count', type: 'integer', default: 0 })
   usedCount!: number;
 
+  @Column({ name: 'active_count', type: 'integer', default: 0 })
+  activeCount!: number;
+
+  @Column({ name: 'unlock_reason', type: 'text', nullable: true })
+  unlockReason!: string | null;
+
+  @Column({ name: 'unlocked_at', type: 'timestamptz', nullable: true })
+  unlockedAt!: Date | null;
+
   @ManyToOne(() => GameRoomEntity, { nullable: false, onDelete: 'CASCADE' })
   @JoinColumn({ name: 'game_room_id', foreignKeyConstraintName: 'fk_game_room_items_room' })
   gameRoom!: GameRoomEntity;

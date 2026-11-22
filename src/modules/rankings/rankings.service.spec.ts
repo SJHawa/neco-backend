@@ -54,6 +54,7 @@ describe('RankingsService', () => {
         firstAttemptClears: 0,
       }),
     ]);
+    expect(query.mock.calls[0][0]).not.toContain('ranking_registered_at IS NOT NULL');
   });
 
   it('adds mission-clear and remaining-strike bonuses to the team score', async () => {
@@ -61,6 +62,7 @@ describe('RankingsService', () => {
       {
         rank: 1,
         gameRoomId: 'room-1',
+        teamName: '이름 없는 팀',
         score: 490,
         difficulty: 'EASY',
         missionCleared: true,
@@ -72,6 +74,7 @@ describe('RankingsService', () => {
       },
     ]);
     expect(query.mock.calls[0][0]).toContain("gr.mode = 'MULTIPLAYER'");
+    expect(query.mock.calls[0][0]).toContain('ranking_registered_at IS NOT NULL');
   });
 
   it('does not consume the first-attempt bonus when the server reports an error', async () => {
@@ -118,6 +121,7 @@ describe('RankingsService', () => {
       judgeStatus: MissionResultJudgeStatus.PASSED,
       stepId: 'step-1',
       missionFinished: false,
+      teamName: null,
       ...overrides,
     };
   }

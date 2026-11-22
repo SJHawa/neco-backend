@@ -259,12 +259,17 @@ export class GameRoomsService {
             gameRoomMissionId: gameRoomMission.id,
           });
 
-        await manager.getRepository(GameRoomItemEntity).insert({
-          gameRoomId: gameRoom.id,
-          itemType: GameItemType.TIME_EXTENSION_30,
-          quantity: 1,
-          usedCount: 0,
-        });
+        await manager.getRepository(GameRoomItemEntity).insert(
+          Object.values(GameItemType).map((itemType) => ({
+            gameRoomId: gameRoom.id,
+            itemType,
+            quantity: 0,
+            usedCount: 0,
+            activeCount: 0,
+            unlockReason: null,
+            unlockedAt: null,
+          })),
+        );
 
         gameRoom.status = GameRoomStatus.IN_PROGRESS;
         const savedGameRoom = await roomRepository.save(gameRoom);
