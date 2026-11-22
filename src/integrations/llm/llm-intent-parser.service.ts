@@ -105,7 +105,7 @@ export class LlmIntentParserService implements LlmIntentParserPort {
   parseWithHeuristics(message: string): LlmIntentRawResponse {
     const normalized = message.trim();
 
-    if (/(방|room).*(없애|삭제|지워|닫아|폐쇄|delete|remove|close)|(없애|삭제|지워|닫아|폐쇄).*(방|room)/i.test(normalized)) {
+    if (this.isRoomDeleteRequest(normalized)) {
       return {
         requestType: 'ROOM_DELETE',
         confidence: 'high',
@@ -167,7 +167,7 @@ export class LlmIntentParserService implements LlmIntentParserPort {
       };
     }
 
-    if (/방.*만들|만들.*방|room create/i.test(normalized)) {
+    if (this.isRoomCreateRequest(normalized)) {
       const difficulty = this.extractDifficulty(normalized);
       return {
         requestType: 'ROOM_CREATE',
@@ -183,6 +183,36 @@ export class LlmIntentParserService implements LlmIntentParserPort {
       payload: {},
       assistantHint: '요청을 이해하지 못했어요. 방 생성, 초대, 참가, 거절, 게임 시작 중 무엇을 원하시는지 알려주세요.',
     };
+  }
+
+  private isRoomCreateRequest(message: string): boolean {
+    if (this.isInformationalQuestion(message)) {
+      return false;
+    }
+
+    const roomWithCreateAction =
+      /(방|게임방|대기방|room).*(만들|생성|개설|파줘|열어|create|open)|(만들|생성|개설|파줘|열어|create|open).*(방|게임방|대기방|room)/i;
+    const shortCreateCommand =
+      /^(?:방\s*)?(?:만들어?(?:줘|주세요)?|생성(?:해줘|해주세요|해)?|개설(?:해줘|해주세요|해)?|파줘|열어줘)[.!?~\s]*$/i;
+
+    return roomWithCreateAction.test(message) || shortCreateCommand.test(message);
+  }
+
+  private isRoomDeleteRequest(message: string): boolean {
+    if (this.isInformationalQuestion(message)) {
+      return false;
+    }
+
+    const roomWithDeleteAction =
+      /(방|게임방|대기방|room).*(없애|삭제|지워|닫아|폐쇄|해체|delete|remove|close)|(없애|삭제|지워|닫아|폐쇄|해체|delete|remove|close).*(방|게임방|대기방|room)/i;
+    const shortDeleteCommand =
+      /^(?:이\s*방\s*)?(?:없애|삭제|지워|닫아|폐쇄|해체)(?:줘|주세요|해줘|해주세요|해)?[.!?~\s]*$/i;
+
+    return roomWithDeleteAction.test(message) || shortDeleteCommand.test(message);
+  }
+
+  private isInformationalQuestion(message: string): boolean {
+    return /(어떻게|방법|가능해|할\s*수\s*있|해도\s*돼|하면\s*뭐|뭐야|왜)/i.test(message);
   }
 
   private isInviteAcceptance(message: string): boolean {

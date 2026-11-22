@@ -50,13 +50,31 @@ describe('LlmIntentParserService', () => {
     expect(service.resolveIntentSystemPrompt()).toContain('ROOM_CREATE');
   });
 
-  it('heuristically parses ROOM_CREATE messages', async () => {
-    const result = await service.parseUserMessage({ message: '쉬운 난이도로 방 만들어줘' });
+  it.each([
+    '쉬운 난이도로 방 만들어줘',
+    '방 생성해줘',
+    '게임방 개설해주세요',
+    '방 하나 파줘',
+    '만들어줘',
+  ])('heuristically parses ROOM_CREATE message: %s', async (message) => {
+    const result = await service.parseUserMessage({ message });
     expect(result.requestType).toBe('ROOM_CREATE');
+  });
+
+  it('keeps difficulty extraction for ROOM_CREATE synonyms', async () => {
+    const result = await service.parseUserMessage({ message: '쉬운 난이도로 방 생성해줘' });
     expect(result.payload).toMatchObject({ desiredDifficulty: 'EASY' });
   });
 
-  it.each(['방 없애줘', '지금 방 삭제해줘', 'room delete']) (
+  it.each([
+    '방 없애줘',
+    '지금 방 삭제해줘',
+    '대기방 닫아줘',
+    '이 방 지워주세요',
+    '삭제',
+    '지워줘',
+    'room delete',
+  ]) (
     'heuristically parses ROOM_DELETE message: %s',
     async (message) => {
       const result = await service.parseUserMessage({ message });
@@ -93,6 +111,14 @@ describe('LlmIntentParserService', () => {
     expect(result.requestType).toBeNull();
     expect(result.confidence).toBe('low');
   });
+
+  it.each(['방 만드는 방법 알려줘', '방 삭제하면 어떻게 돼?'])(
+    'does not execute informational question as a command: %s',
+    async (message) => {
+      const result = await service.parseUserMessage({ message });
+      expect(result.requestType).toBeNull();
+    },
+  );
 
   it('does not call shared client when API key is missing', async () => {
     await service.parseUserMessage({ message: '쉬운 난이도로 방 만들어줘' });

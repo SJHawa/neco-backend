@@ -351,5 +351,165 @@
         { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 은행 계좌 시스템\n\nEOF까지 한 줄에 하나의 명령이 주어집니다.\n\n- `DEPOSIT 이름 금액`\n- `WITHDRAW 이름 금액`\n- `TRANSFER 보내는이름 받는이름 금액`\n- `BALANCE 이름`\n- `HISTORY 이름`\n\n오류 문자열: `ERROR: invalid amount`, `ERROR: account not found`, `ERROR: insufficient funds`, `ERROR: unsupported command`\n" }
       ]
     }
+  },
+  {
+    "id": "88888888-8888-4888-8888-888888888881",
+    "title": "홀짝 판별기",
+    "description": "정수를 입력받아 짝수, 홀수, 잘못된 입력을 단계별로 판별합니다.",
+    "language": "python",
+    "difficulty": "EASY",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "입력값에 따라 EVEN, ODD 또는 ERROR: invalid number를 정확히 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "even_number", "stdinLines": ["8"], "expectedStdout": "EVEN" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "even_number", "stdinLines": ["8"], "expectedStdout": "EVEN" }, { "name": "odd_number", "stdinLines": ["7"], "expectedStdout": "ODD" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "even_number", "stdinLines": ["8"], "expectedStdout": "EVEN" }, { "name": "odd_number", "stdinLines": ["7"], "expectedStdout": "ODD" }, { "name": "invalid_number", "stdinLines": ["hello"], "expectedStdout": "ERROR: invalid number" }] }
+      ]
+    },
+    "projectStructureJson": {
+      "rootPath": "/workspace",
+      "entryFilePath": "main.py",
+      "files": [
+        { "filePath": "main.py", "language": "python", "readonly": false, "content": "def main():\n    # 정수 하나를 읽고 EVEN 또는 ODD를 출력하세요.\n    # 정수가 아니면 ERROR: invalid number를 출력하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+        { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 홀짝 판별기\n\n정수 하나를 입력받아 짝수는 `EVEN`, 홀수는 `ODD`를 출력합니다. 잘못된 입력은 `ERROR: invalid number`를 출력합니다.\n" }
+      ]
+    }
+  },
+  {
+    "id": "88888888-8888-4888-8888-888888888882",
+    "title": "문자열 변환기",
+    "description": "문자열의 길이, 뒤집기, 회문 판별 명령을 단계별로 구현합니다.",
+    "language": "python",
+    "difficulty": "EASY",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "LENGTH, REVERSE, PALINDROME 명령의 결과를 정확히 한 줄로 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "string_length", "stdinLines": ["LENGTH", "neco"], "expectedStdout": "4" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "string_length", "stdinLines": ["LENGTH", "neco"], "expectedStdout": "4" }, { "name": "string_reverse", "stdinLines": ["REVERSE", "python"], "expectedStdout": "nohtyp" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "string_length", "stdinLines": ["LENGTH", "neco"], "expectedStdout": "4" }, { "name": "string_reverse", "stdinLines": ["REVERSE", "python"], "expectedStdout": "nohtyp" }, { "name": "palindrome_yes", "stdinLines": ["PALINDROME", "level"], "expectedStdout": "YES" }, { "name": "palindrome_no", "stdinLines": ["PALINDROME", "hello"], "expectedStdout": "NO" }] }
+      ]
+    },
+    "projectStructureJson": {
+      "rootPath": "/workspace",
+      "entryFilePath": "main.py",
+      "files": [
+        { "filePath": "main.py", "language": "python", "readonly": false, "content": "def main():\n    command = input().strip()\n    text = input().strip()\n\n    # command에 따라 문자열을 처리하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+        { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 문자열 변환기\n\n첫 줄은 `LENGTH`, `REVERSE`, `PALINDROME` 중 하나이고 둘째 줄은 처리할 문자열입니다.\n" }
+      ]
+    }
+  },
+  {
+    "id": "99999999-9999-4999-8999-999999999991",
+    "title": "재고 관리기",
+    "description": "상품별 입고, 출고, 재고 조회 명령을 순서대로 처리합니다.",
+    "language": "python",
+    "difficulty": "NORMAL",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "EOF까지 모든 명령을 처리하고 변경된 재고 또는 오류를 줄마다 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES", "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "add_stock", "stdinLines": ["ADD apple 5", "ADD apple 3"], "expectedStdout": "apple 5\napple 8" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "remove_stock", "stdinLines": ["ADD apple 5", "REMOVE apple 2"], "expectedStdout": "apple 5\napple 3" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "stock_query", "stdinLines": ["ADD apple 5", "REMOVE apple 2", "STOCK apple"], "expectedStdout": "apple 5\napple 3\napple 3" }, { "name": "insufficient_stock", "stdinLines": ["ADD apple 2", "REMOVE apple 5"], "expectedStdout": "apple 2\nERROR: insufficient stock" }] }
+      ]
+    },
+    "projectStructureJson": { "rootPath": "/workspace", "entryFilePath": "main.py", "files": [
+      { "filePath": "main.py", "language": "python", "readonly": false, "content": "import sys\n\n\ndef main():\n    stocks = {}\n    # EOF까지 ADD, REMOVE, STOCK 명령을 처리하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+      { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 재고 관리기\n\n`ADD 상품 수량`, `REMOVE 상품 수량`, `STOCK 상품` 명령을 EOF까지 처리합니다.\n" }
+    ] }
+  },
+  {
+    "id": "99999999-9999-4999-8999-999999999992",
+    "title": "로그 통계 분석기",
+    "description": "로그 레벨별 개수와 가장 많이 발생한 레벨을 분석합니다.",
+    "language": "python",
+    "difficulty": "NORMAL",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "COUNT, TOTAL, MOST 명령에 맞는 로그 통계를 정확히 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES", "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "count_level", "stdinLines": ["COUNT ERROR", "INFO", "ERROR", "ERROR", "WARN"], "expectedStdout": "2" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "total_logs", "stdinLines": ["TOTAL", "INFO", "ERROR", "WARN"], "expectedStdout": "3" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "most_level", "stdinLines": ["MOST", "INFO", "ERROR", "ERROR", "WARN"], "expectedStdout": "ERROR 2" }, { "name": "count_level", "stdinLines": ["COUNT WARN", "WARN", "INFO", "WARN"], "expectedStdout": "2" }] }
+      ]
+    },
+    "projectStructureJson": { "rootPath": "/workspace", "entryFilePath": "main.py", "files": [
+      { "filePath": "main.py", "language": "python", "readonly": false, "content": "import sys\n\n\ndef main():\n    command = input().strip()\n    logs = [line.strip() for line in sys.stdin if line.strip()]\n    # command에 맞는 로그 통계를 출력하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+      { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 로그 통계 분석기\n\n첫 줄의 `COUNT 레벨`, `TOTAL`, `MOST` 명령에 따라 나머지 로그 레벨을 분석합니다.\n" }
+    ] }
+  },
+  {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    "title": "작업 스케줄러",
+    "description": "우선순위 작업을 등록하고 실행하며 남은 작업 목록을 관리합니다.",
+    "language": "python",
+    "difficulty": "HARD",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "우선순위가 높은 작업부터, 우선순위가 같으면 먼저 등록된 작업부터 실행합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES", "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "add_tasks", "stdinLines": ["ADD build 2", "ADD test 3"], "expectedStdout": "ADDED build\nADDED test" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "run_priority", "stdinLines": ["ADD build 2", "ADD test 3", "RUN"], "expectedStdout": "ADDED build\nADDED test\nRUN test" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "list_tasks", "stdinLines": ["ADD build 2", "ADD test 3", "LIST"], "expectedStdout": "ADDED build\nADDED test\ntest 3 | build 2" }, { "name": "run_empty", "stdinLines": ["RUN"], "expectedStdout": "EMPTY" }] }
+      ]
+    },
+    "projectStructureJson": { "rootPath": "/workspace", "entryFilePath": "main.py", "files": [
+      { "filePath": "main.py", "language": "python", "readonly": false, "content": "import sys\n\n\ndef main():\n    tasks = []\n    # EOF까지 ADD, RUN, LIST 명령을 처리하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+      { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 작업 스케줄러\n\n`ADD 이름 우선순위`, `RUN`, `LIST` 명령을 처리합니다. 높은 우선순위가 먼저입니다.\n" }
+    ] }
+  },
+  {
+    "id": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+    "title": "좌석 예약 시스템",
+    "description": "좌석 예약, 취소, 상태 조회와 중복 예약 오류를 관리합니다.",
+    "language": "python",
+    "difficulty": "HARD",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "좌석 상태를 유지하며 예약·취소 결과와 지정된 오류를 정확히 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES", "language": "python",
+      "runtime": { "entryFilePath": "main.py", "command": "python /workspace/main.py", "stdinMode": "lines", "promptFree": true },
+      "comparisonPolicy": { "stdout": "trim-exact", "stderr": "must-be-empty", "exitCode": 0 },
+      "steps": [
+        { "stepOrder": 1, "testCases": [{ "name": "reserve_seat", "stdinLines": ["RESERVE A1 민수"], "expectedStdout": "A1 민수" }] },
+        { "stepOrder": 2, "testCases": [{ "name": "cancel_seat", "stdinLines": ["RESERVE A1 민수", "CANCEL A1"], "expectedStdout": "A1 민수\nA1 EMPTY" }] },
+        { "stepOrder": 3, "testCases": [{ "name": "seat_status", "stdinLines": ["RESERVE A1 민수", "STATUS A1"], "expectedStdout": "A1 민수\nA1 민수" }, { "name": "duplicate_reservation", "stdinLines": ["RESERVE A1 민수", "RESERVE A1 영희"], "expectedStdout": "A1 민수\nERROR: already reserved" }] }
+      ]
+    },
+    "projectStructureJson": { "rootPath": "/workspace", "entryFilePath": "main.py", "files": [
+      { "filePath": "main.py", "language": "python", "readonly": false, "content": "import sys\n\n\ndef main():\n    seats = {}\n    # EOF까지 RESERVE, CANCEL, STATUS 명령을 처리하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
+      { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 좌석 예약 시스템\n\n`RESERVE 좌석 이름`, `CANCEL 좌석`, `STATUS 좌석` 명령을 EOF까지 처리합니다.\n" }
+    ] }
   }
 ]
