@@ -262,5 +262,131 @@
     "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 6 } },
     "successCriteriaJson": { "errorStrings": ["ERROR: invalid amount", "ERROR: account not found", "ERROR: insufficient funds", "ERROR: unsupported command"] },
     "hintText": "명령 형식과 양수 금액을 먼저 검사하고, 계좌가 필요한 명령에서는 존재 여부를 확인하세요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb811", "missionTemplateId": "88888888-8888-4888-8888-888888888881", "stepOrder": 1,
+    "title": "짝수 판별", "description": "2로 나누어떨어지는 정수를 판별합니다.", "targetFilePath": "main.py",
+    "successCriteria": "짝수 입력에 `EVEN`을 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "outputs": ["EVEN"] }, "hintText": "정수를 2로 나눈 나머지가 0인지 확인하세요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb812", "missionTemplateId": "88888888-8888-4888-8888-888888888881", "stepOrder": 2,
+    "title": "홀수 판별", "description": "홀수 입력도 구분합니다.", "targetFilePath": "main.py",
+    "successCriteria": "홀수 입력에 `ODD`를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "outputs": ["EVEN", "ODD"] }, "hintText": "짝수가 아닌 정수는 ODD를 출력하세요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb813", "missionTemplateId": "88888888-8888-4888-8888-888888888881", "stepOrder": 3,
+    "title": "입력 오류 처리", "description": "정수가 아닌 입력을 처리합니다.", "targetFilePath": "main.py",
+    "successCriteria": "변환할 수 없으면 `ERROR: invalid number`를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "errorStrings": ["ERROR: invalid number"] }, "hintText": "int 변환을 try/except ValueError로 감싸세요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb821", "missionTemplateId": "88888888-8888-4888-8888-888888888882", "stepOrder": 1,
+    "title": "문자열 길이", "description": "LENGTH 명령을 구현합니다.", "targetFilePath": "main.py",
+    "successCriteria": "문자열 길이만 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "requiredCommands": ["LENGTH"] }, "hintText": "len(text)의 결과를 출력하세요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb822", "missionTemplateId": "88888888-8888-4888-8888-888888888882", "stepOrder": 2,
+    "title": "문자열 뒤집기", "description": "REVERSE 명령을 추가합니다.", "targetFilePath": "main.py",
+    "successCriteria": "문자열을 역순으로 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "requiredCommands": ["LENGTH", "REVERSE"] }, "hintText": "슬라이싱 text[::-1]을 활용할 수 있어요."
+  },
+  {
+    "id": "bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbb823", "missionTemplateId": "88888888-8888-4888-8888-888888888882", "stepOrder": 3,
+    "title": "회문 판별", "description": "PALINDROME 명령을 추가합니다.", "targetFilePath": "main.py",
+    "successCriteria": "회문이면 YES, 아니면 NO를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "requiredCommands": ["LENGTH", "REVERSE", "PALINDROME"] }, "hintText": "원본 문자열과 뒤집은 문자열을 비교하세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc911", "missionTemplateId": "99999999-9999-4999-8999-999999999991", "stepOrder": 1,
+    "title": "상품 입고", "description": "ADD 명령으로 재고를 누적합니다.", "targetFilePath": "main.py",
+    "successCriteria": "입고 후 상품명과 현재 재고를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD"] }, "hintText": "상품별 수량을 딕셔너리에 저장하고 기존 값에 더하세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc912", "missionTemplateId": "99999999-9999-4999-8999-999999999991", "stepOrder": 2,
+    "title": "상품 출고", "description": "REMOVE 명령으로 재고를 차감합니다.", "targetFilePath": "main.py",
+    "successCriteria": "출고 후 남은 재고를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD", "REMOVE"] }, "hintText": "현재 재고가 출고 수량 이상인지 먼저 확인하세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc913", "missionTemplateId": "99999999-9999-4999-8999-999999999991", "stepOrder": 3,
+    "title": "재고 조회와 오류", "description": "STOCK 조회와 재고 부족 오류를 처리합니다.", "targetFilePath": "main.py",
+    "successCriteria": "조회 결과 또는 `ERROR: insufficient stock`을 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD", "REMOVE", "STOCK"], "errorStrings": ["ERROR: insufficient stock"] }, "hintText": "재고 부족 시 수량을 변경하지 말고 오류만 출력하세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc921", "missionTemplateId": "99999999-9999-4999-8999-999999999992", "stepOrder": 1,
+    "title": "레벨별 개수", "description": "COUNT 명령으로 특정 로그 레벨을 셉니다.", "targetFilePath": "main.py",
+    "successCriteria": "요청한 레벨의 개수를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "requiredCommands": ["COUNT"] }, "hintText": "logs.count(level)을 활용해보세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc922", "missionTemplateId": "99999999-9999-4999-8999-999999999992", "stepOrder": 2,
+    "title": "전체 로그 수", "description": "TOTAL 명령을 구현합니다.", "targetFilePath": "main.py",
+    "successCriteria": "빈 줄을 제외한 전체 로그 수를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "requiredCommands": ["COUNT", "TOTAL"] }, "hintText": "읽어둔 logs 목록의 길이를 출력하세요."
+  },
+  {
+    "id": "cccccccc-cccc-4ccc-8ccc-ccccccccc923", "missionTemplateId": "99999999-9999-4999-8999-999999999992", "stepOrder": 3,
+    "title": "최다 로그 레벨", "description": "MOST 명령으로 가장 많은 레벨을 찾습니다.", "targetFilePath": "main.py",
+    "successCriteria": "레벨과 개수를 공백으로 구분해 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "requiredCommands": ["COUNT", "TOTAL", "MOST"] }, "hintText": "딕셔너리로 레벨별 개수를 만든 뒤 최댓값을 찾으세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda11", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", "stepOrder": 1,
+    "title": "작업 등록", "description": "ADD 명령으로 이름과 우선순위를 등록합니다.", "targetFilePath": "main.py",
+    "successCriteria": "등록할 때 `ADDED 이름`을 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD"] }, "hintText": "등록 순서를 보존할 수 있도록 이름, 우선순위, 순번을 함께 저장하세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda12", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", "stepOrder": 2,
+    "title": "우선순위 실행", "description": "RUN 명령으로 다음 작업을 실행합니다.", "targetFilePath": "main.py",
+    "successCriteria": "가장 높은 우선순위 작업을 제거하고 `RUN 이름`을 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD", "RUN"] }, "hintText": "우선순위는 내림차순, 등록 순번은 오름차순으로 비교하세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda13", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1", "stepOrder": 3,
+    "title": "목록과 빈 큐", "description": "LIST와 빈 상태의 RUN을 처리합니다.", "targetFilePath": "main.py",
+    "successCriteria": "정렬된 목록을 출력하고 작업이 없으면 EMPTY를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "requiredCommands": ["ADD", "RUN", "LIST"] }, "hintText": "LIST에서도 RUN과 같은 정렬 기준을 사용하되 작업을 제거하지 마세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda21", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2", "stepOrder": 1,
+    "title": "좌석 예약", "description": "RESERVE 명령으로 좌석에 이름을 저장합니다.", "targetFilePath": "main.py",
+    "successCriteria": "예약 성공 시 좌석과 이름을 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 1 } },
+    "successCriteriaJson": { "requiredCommands": ["RESERVE"] }, "hintText": "좌석 번호를 key, 예약자 이름을 value로 딕셔너리에 저장하세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda22", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2", "stepOrder": 2,
+    "title": "예약 취소", "description": "CANCEL 명령으로 예약을 취소합니다.", "targetFilePath": "main.py",
+    "successCriteria": "취소한 좌석에 `좌석 EMPTY`를 출력합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 2 } },
+    "successCriteriaJson": { "requiredCommands": ["RESERVE", "CANCEL"] }, "hintText": "예약 딕셔너리에서 좌석을 제거하세요."
+  },
+  {
+    "id": "dddddddd-dddd-4ddd-8ddd-ddddddddda23", "missionTemplateId": "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2", "stepOrder": 3,
+    "title": "좌석 조회와 중복 방지", "description": "STATUS 조회와 중복 예약 오류를 처리합니다.", "targetFilePath": "main.py",
+    "successCriteria": "현재 예약자를 출력하고 중복 예약은 `ERROR: already reserved`로 거절합니다.",
+    "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
+    "successCriteriaJson": { "requiredCommands": ["RESERVE", "CANCEL", "STATUS"], "errorStrings": ["ERROR: already reserved"] }, "hintText": "예약 전에 좌석이 이미 딕셔너리에 있는지 확인하세요."
   }
 ]

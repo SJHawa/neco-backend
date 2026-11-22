@@ -54,8 +54,8 @@ describe('MissionSeedService', () => {
 
     expect(counts).toEqual({
       dockerImages: 1,
-      missionTemplates: 3,
-      missionTemplateSteps: 18,
+      missionTemplates: 9,
+      missionTemplateSteps: 36,
     });
     expect(dockerImageRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -152,7 +152,7 @@ describe('MissionSeedService', () => {
         testCases: Array<{ name: string }>;
       }>)[5]?.testCases.map((testCase) => testCase.name),
     ).toContain('invalid_commands');
-    expect(missionTemplateStepRepository.save).toHaveBeenCalledTimes(18);
+    expect(missionTemplateStepRepository.save).toHaveBeenCalledTimes(36);
   });
 
   it('does not rewrite existing mission step primary keys on reseed', async () => {
