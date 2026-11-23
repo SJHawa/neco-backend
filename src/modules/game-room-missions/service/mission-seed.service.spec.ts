@@ -54,8 +54,8 @@ describe('MissionSeedService', () => {
 
     expect(counts).toEqual({
       dockerImages: 1,
-      missionTemplates: 9,
-      missionTemplateSteps: 36,
+      missionTemplates: 10,
+      missionTemplateSteps: 41,
     });
     expect(dockerImageRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -128,6 +128,26 @@ describe('MissionSeedService', () => {
         difficulty: 'HARD',
       }),
     );
+    const primeChecker = missionTemplateRepository.save.mock.calls
+      .map(([template]) => template as MissionTemplateEntity)
+      .find((template) => template.id === 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1');
+    const primeCheckerSteps = primeChecker?.judgePolicyJson.steps as
+      | Array<{ stepOrder: number; testCases: Array<{ expectedStdout: string }> }>
+      | undefined;
+
+    expect(primeChecker).toEqual(
+      expect.objectContaining({
+        title: '소수 판별기',
+        difficulty: 'NORMAL',
+        dockerImageId: '11111111-1111-4111-8111-111111111111',
+      }),
+    );
+    expect(primeCheckerSteps?.map((step) => step.stepOrder)).toEqual([1, 2, 3, 4, 5]);
+    expect(
+      primeCheckerSteps?.every((step) =>
+        step.testCases.every((testCase) => testCase.expectedStdout.length > 0),
+      ),
+    ).toBe(true);
     const savedTemplates = missionTemplateRepository.save.mock.calls.map(
       ([template]) => template as MissionTemplateEntity,
     );

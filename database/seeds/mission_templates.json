@@ -511,5 +511,344 @@
       { "filePath": "main.py", "language": "python", "readonly": false, "content": "import sys\n\n\ndef main():\n    seats = {}\n    # EOF까지 RESERVE, CANCEL, STATUS 명령을 처리하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n" },
       { "filePath": "README.md", "language": "markdown", "readonly": true, "content": "# 좌석 예약 시스템\n\n`RESERVE 좌석 이름`, `CANCEL 좌석`, `STATUS 좌석` 명령을 EOF까지 처리합니다.\n" }
     ] }
+  },
+  {
+    "id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "title": "소수 판별기",
+    "description": "정수를 입력받아 소수 판별, 소수 개수, 소수 목록, 소인수분해와 오류 처리를 단계별로 구현합니다.",
+    "language": "python",
+    "difficulty": "NORMAL",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "다섯 단계의 공개 테스트 케이스를 모두 통과하고, 명령별 결과 또는 지정된 오류 문자열을 정확히 한 줄로 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "language": "python",
+      "runtime": {
+        "entryFilePath": "main.py",
+        "command": "python /workspace/main.py",
+        "stdinMode": "lines",
+        "promptFree": true
+      },
+      "comparisonPolicy": {
+        "stdout": "trim-exact",
+        "stderr": "must-be-empty",
+        "exitCode": 0
+      },
+      "errorStrings": {
+        "invalidNumber": "ERROR: invalid number",
+        "unsupportedCommand": "ERROR: unsupported command"
+      },
+      "steps": [
+        {
+          "stepOrder": 1,
+          "testCases": [
+            {
+              "name": "prime_seven",
+              "stdinLines": [
+                "PRIME",
+                "7"
+              ],
+              "expectedStdout": "PRIME"
+            },
+            {
+              "name": "composite_nine",
+              "stdinLines": [
+                "PRIME",
+                "9"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "one_is_not_prime",
+              "stdinLines": [
+                "PRIME",
+                "1"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "two_is_prime",
+              "stdinLines": [
+                "PRIME",
+                "2"
+              ],
+              "expectedStdout": "PRIME"
+            }
+          ]
+        },
+        {
+          "stepOrder": 2,
+          "testCases": [
+            {
+              "name": "prime_seven",
+              "stdinLines": [
+                "PRIME",
+                "7"
+              ],
+              "expectedStdout": "PRIME"
+            },
+            {
+              "name": "composite_nine",
+              "stdinLines": [
+                "PRIME",
+                "9"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "one_is_not_prime",
+              "stdinLines": [
+                "PRIME",
+                "1"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "count_to_ten",
+              "stdinLines": [
+                "COUNT",
+                "10"
+              ],
+              "expectedStdout": "4"
+            },
+            {
+              "name": "count_to_one",
+              "stdinLines": [
+                "COUNT",
+                "1"
+              ],
+              "expectedStdout": "0"
+            },
+            {
+              "name": "count_to_two",
+              "stdinLines": [
+                "COUNT",
+                "2"
+              ],
+              "expectedStdout": "1"
+            },
+            {
+              "name": "count_to_hundred",
+              "stdinLines": [
+                "COUNT",
+                "100"
+              ],
+              "expectedStdout": "25"
+            }
+          ]
+        },
+        {
+          "stepOrder": 3,
+          "testCases": [
+            {
+              "name": "prime_seven",
+              "stdinLines": [
+                "PRIME",
+                "7"
+              ],
+              "expectedStdout": "PRIME"
+            },
+            {
+              "name": "one_is_not_prime",
+              "stdinLines": [
+                "PRIME",
+                "1"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "count_to_ten",
+              "stdinLines": [
+                "COUNT",
+                "10"
+              ],
+              "expectedStdout": "4"
+            },
+            {
+              "name": "list_to_twenty",
+              "stdinLines": [
+                "LIST",
+                "20"
+              ],
+              "expectedStdout": "2 3 5 7 11 13 17 19"
+            },
+            {
+              "name": "list_to_two",
+              "stdinLines": [
+                "LIST",
+                "2"
+              ],
+              "expectedStdout": "2"
+            },
+            {
+              "name": "list_none",
+              "stdinLines": [
+                "LIST",
+                "1"
+              ],
+              "expectedStdout": "NONE"
+            }
+          ]
+        },
+        {
+          "stepOrder": 4,
+          "testCases": [
+            {
+              "name": "prime_seven",
+              "stdinLines": [
+                "PRIME",
+                "7"
+              ],
+              "expectedStdout": "PRIME"
+            },
+            {
+              "name": "count_to_ten",
+              "stdinLines": [
+                "COUNT",
+                "10"
+              ],
+              "expectedStdout": "4"
+            },
+            {
+              "name": "list_to_twenty",
+              "stdinLines": [
+                "LIST",
+                "20"
+              ],
+              "expectedStdout": "2 3 5 7 11 13 17 19"
+            },
+            {
+              "name": "factor_twelve",
+              "stdinLines": [
+                "FACTOR",
+                "12"
+              ],
+              "expectedStdout": "2 2 3"
+            },
+            {
+              "name": "factor_prime",
+              "stdinLines": [
+                "FACTOR",
+                "97"
+              ],
+              "expectedStdout": "97"
+            },
+            {
+              "name": "factor_composite_large",
+              "stdinLines": [
+                "FACTOR",
+                "360"
+              ],
+              "expectedStdout": "2 2 2 3 3 5"
+            },
+            {
+              "name": "factor_prime_power",
+              "stdinLines": [
+                "FACTOR",
+                "49"
+              ],
+              "expectedStdout": "7 7"
+            }
+          ]
+        },
+        {
+          "stepOrder": 5,
+          "testCases": [
+            {
+              "name": "prime_seven",
+              "stdinLines": [
+                "PRIME",
+                "7"
+              ],
+              "expectedStdout": "PRIME"
+            },
+            {
+              "name": "count_to_ten",
+              "stdinLines": [
+                "COUNT",
+                "10"
+              ],
+              "expectedStdout": "4"
+            },
+            {
+              "name": "list_to_twenty",
+              "stdinLines": [
+                "LIST",
+                "20"
+              ],
+              "expectedStdout": "2 3 5 7 11 13 17 19"
+            },
+            {
+              "name": "factor_twelve",
+              "stdinLines": [
+                "FACTOR",
+                "12"
+              ],
+              "expectedStdout": "2 2 3"
+            },
+            {
+              "name": "invalid_number_text",
+              "stdinLines": [
+                "PRIME",
+                "abc"
+              ],
+              "expectedStdout": "ERROR: invalid number"
+            },
+            {
+              "name": "invalid_number_decimal",
+              "stdinLines": [
+                "COUNT",
+                "3.5"
+              ],
+              "expectedStdout": "ERROR: invalid number"
+            },
+            {
+              "name": "factor_below_two",
+              "stdinLines": [
+                "FACTOR",
+                "1"
+              ],
+              "expectedStdout": "ERROR: invalid number"
+            },
+            {
+              "name": "negative_not_prime",
+              "stdinLines": [
+                "PRIME",
+                "-7"
+              ],
+              "expectedStdout": "NOT PRIME"
+            },
+            {
+              "name": "unsupported_command",
+              "stdinLines": [
+                "SQRT",
+                "16"
+              ],
+              "expectedStdout": "ERROR: unsupported command"
+            }
+          ]
+        }
+      ]
+    },
+    "projectStructureJson": {
+      "rootPath": "/workspace",
+      "entryFilePath": "main.py",
+      "files": [
+        {
+          "filePath": "main.py",
+          "language": "python",
+          "readonly": false,
+          "content": "def main():\n    command = input().strip()\n    number = input().strip()\n\n    # command에 따라 결과를 한 줄로 출력하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        },
+        {
+          "filePath": "README.md",
+          "language": "markdown",
+          "readonly": true,
+          "content": "# 소수 판별기\n\n표준 입력은 두 줄입니다.\n\n1. 명령: `PRIME`, `COUNT`, `LIST`, `FACTOR`\n2. 정수 n\n\n- `PRIME`: n이 소수이면 `PRIME`, 아니면 `NOT PRIME` (1과 음수는 소수가 아닙니다)\n- `COUNT`: n 이하 소수의 개수\n- `LIST`: n 이하 소수를 오름차순으로 공백 구분 출력, 없으면 `NONE`\n- `FACTOR`: n의 소인수를 오름차순으로 공백 구분 출력 (n은 2 이상)\n\n오류 문자열: `ERROR: invalid number`, `ERROR: unsupported command`. 명령을 먼저 검사합니다.\n"
+        }
+      ]
+    }
   }
 ]

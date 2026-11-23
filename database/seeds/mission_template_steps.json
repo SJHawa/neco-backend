@@ -388,5 +388,124 @@
     "successCriteria": "현재 예약자를 출력하고 중복 예약은 `ERROR: already reserved`로 거절합니다.",
     "judgePolicyJson": { "judgeType": "PUBLIC_TEST_CASES", "caseBundleRef": { "source": "mission_templates.judge_policy_json", "stepOrder": 3 } },
     "successCriteriaJson": { "requiredCommands": ["RESERVE", "CANCEL", "STATUS"], "errorStrings": ["ERROR: already reserved"] }, "hintText": "예약 전에 좌석이 이미 딕셔너리에 있는지 확인하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff001",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "stepOrder": 1,
+    "title": "소수 판별",
+    "description": "`PRIME` 명령에서 입력한 정수가 소수인지 판별합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "소수이면 `PRIME`, 소수가 아니면 `NOT PRIME`만 출력합니다. 1은 소수가 아닙니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 1
+      }
+    },
+    "successCriteriaJson": {
+      "requiredCommands": [
+        "PRIME"
+      ]
+    },
+    "hintText": "2부터 n의 제곱근까지 나누어떨어지는 수가 있는지 확인하고, n이 2보다 작으면 바로 NOT PRIME으로 처리하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff002",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "stepOrder": 2,
+    "title": "소수 개수 세기",
+    "description": "`COUNT` 명령을 추가해 n 이하 소수의 개수를 출력합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "n 이하의 소수 개수만 출력합니다. 소수가 없으면 `0`입니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 2
+      }
+    },
+    "successCriteriaJson": {
+      "requiredCommands": [
+        "PRIME",
+        "COUNT"
+      ]
+    },
+    "hintText": "1단계의 소수 판별을 함수로 분리해 2부터 n까지 반복 호출하면 개수를 셀 수 있어요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff003",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "stepOrder": 3,
+    "title": "소수 목록 출력",
+    "description": "`LIST` 명령을 추가해 n 이하 소수를 공백으로 구분해 출력합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "오름차순으로 한 줄에 출력하고, 소수가 없으면 `NONE`을 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 3
+      }
+    },
+    "successCriteriaJson": {
+      "requiredCommands": [
+        "PRIME",
+        "COUNT",
+        "LIST"
+      ]
+    },
+    "hintText": "소수를 리스트에 모은 뒤 ' '.join(map(str, primes))로 출력하세요. 리스트가 비어 있으면 NONE을 출력합니다."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff004",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "stepOrder": 4,
+    "title": "소인수분해",
+    "description": "`FACTOR` 명령을 추가해 n을 소인수분해합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "소인수를 오름차순으로, 중복 횟수만큼 공백으로 구분해 출력합니다. 예: 12는 `2 2 3`.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 4
+      }
+    },
+    "successCriteriaJson": {
+      "requiredCommands": [
+        "PRIME",
+        "COUNT",
+        "LIST",
+        "FACTOR"
+      ]
+    },
+    "hintText": "2부터 시작해 나누어떨어지는 동안 나누고 소인수를 기록하세요. 마지막에 남은 값이 1보다 크면 그 값도 소인수입니다."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff005",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee1",
+    "stepOrder": 5,
+    "title": "오류 처리",
+    "description": "잘못된 입력과 지원하지 않는 명령을 처리합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "정수가 아닌 값과 `FACTOR`의 2 미만 입력은 `ERROR: invalid number`, 알 수 없는 명령은 `ERROR: unsupported command`를 출력합니다. 명령을 먼저 검사합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 5
+      }
+    },
+    "successCriteriaJson": {
+      "requiredCommands": [
+        "PRIME",
+        "COUNT",
+        "LIST",
+        "FACTOR"
+      ]
+    },
+    "hintText": "int() 변환을 try/except ValueError로 감싸고, 명령 이름 검사를 숫자 변환보다 먼저 하세요."
   }
 ]
