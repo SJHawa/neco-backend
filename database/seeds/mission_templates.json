@@ -850,5 +850,349 @@
         }
       ]
     }
+  },
+  {
+    "id": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "title": "괄호 검사기",
+    "description": "문자열의 괄호가 올바르게 짝지어졌는지 스택으로 검사하고, 어긋난 위치와 괄호 외 문자 처리까지 단계별로 구현합니다.",
+    "language": "python",
+    "difficulty": "HARD",
+    "defaultTimeLimitSeconds": 300,
+    "defaultMaxStrikeCount": 3,
+    "dockerImageId": "11111111-1111-4111-8111-111111111111",
+    "successCriteria": "다섯 단계의 공개 테스트 케이스를 모두 통과하고, 판정 결과를 정확히 한 줄로 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "language": "python",
+      "runtime": {
+        "entryFilePath": "main.py",
+        "command": "python /workspace/main.py",
+        "stdinMode": "lines",
+        "promptFree": true
+      },
+      "comparisonPolicy": {
+        "stdout": "trim-exact",
+        "stderr": "must-be-empty",
+        "exitCode": 0
+      },
+      "steps": [
+        {
+          "stepOrder": 1,
+          "testCases": [
+            {
+              "name": "paren_simple",
+              "stdinLines": [
+                "()"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "paren_nested",
+              "stdinLines": [
+                "(())"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "paren_open_left",
+              "stdinLines": [
+                "(()"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "paren_extra_close",
+              "stdinLines": [
+                "())"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "paren_wrong_order",
+              "stdinLines": [
+                ")("
+              ],
+              "expectedStdout": "NO"
+            }
+          ]
+        },
+        {
+          "stepOrder": 2,
+          "testCases": [
+            {
+              "name": "paren_simple",
+              "stdinLines": [
+                "()"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "paren_open_left",
+              "stdinLines": [
+                "(()"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "kinds_sequence",
+              "stdinLines": [
+                "()[]{}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "kinds_nested",
+              "stdinLines": [
+                "{[()]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "type_mismatch",
+              "stdinLines": [
+                "(]"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "curly_unclosed",
+              "stdinLines": [
+                "{"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "square_extra_close",
+              "stdinLines": [
+                "]"
+              ],
+              "expectedStdout": "NO"
+            }
+          ]
+        },
+        {
+          "stepOrder": 3,
+          "testCases": [
+            {
+              "name": "kinds_nested",
+              "stdinLines": [
+                "{[()]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "type_mismatch",
+              "stdinLines": [
+                "(]"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "interleaved",
+              "stdinLines": [
+                "([)]"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "wrong_close_order",
+              "stdinLines": [
+                "{(})"
+              ],
+              "expectedStdout": "NO"
+            },
+            {
+              "name": "deep_nested",
+              "stdinLines": [
+                "{[({[]})]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "repeated_nested",
+              "stdinLines": [
+                "(([]))"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "close_before_open",
+              "stdinLines": [
+                "]["
+              ],
+              "expectedStdout": "NO"
+            }
+          ]
+        },
+        {
+          "stepOrder": 4,
+          "testCases": [
+            {
+              "name": "kinds_sequence",
+              "stdinLines": [
+                "()[]{}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "kinds_nested",
+              "stdinLines": [
+                "{[()]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "deep_nested",
+              "stdinLines": [
+                "{[({[]})]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "interleaved",
+              "stdinLines": [
+                "([)]"
+              ],
+              "expectedStdout": "NO 3"
+            },
+            {
+              "name": "close_before_open",
+              "stdinLines": [
+                "]["
+              ],
+              "expectedStdout": "NO 1"
+            },
+            {
+              "name": "type_mismatch",
+              "stdinLines": [
+                "(]"
+              ],
+              "expectedStdout": "NO 2"
+            },
+            {
+              "name": "paren_extra_close",
+              "stdinLines": [
+                "())"
+              ],
+              "expectedStdout": "NO 3"
+            },
+            {
+              "name": "unclosed_tail",
+              "stdinLines": [
+                "()(()"
+              ],
+              "expectedStdout": "NO 3"
+            },
+            {
+              "name": "unclosed_curly",
+              "stdinLines": [
+                "{[]"
+              ],
+              "expectedStdout": "NO 1"
+            },
+            {
+              "name": "unclosed_two",
+              "stdinLines": [
+                "((()"
+              ],
+              "expectedStdout": "NO 1"
+            },
+            {
+              "name": "mismatch_with_open",
+              "stdinLines": [
+                "((]"
+              ],
+              "expectedStdout": "NO 3"
+            }
+          ]
+        },
+        {
+          "stepOrder": 5,
+          "testCases": [
+            {
+              "name": "kinds_nested",
+              "stdinLines": [
+                "{[()]}"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "interleaved",
+              "stdinLines": [
+                "([)]"
+              ],
+              "expectedStdout": "NO 3"
+            },
+            {
+              "name": "unclosed_tail",
+              "stdinLines": [
+                "()(()"
+              ],
+              "expectedStdout": "NO 3"
+            },
+            {
+              "name": "text_ok",
+              "stdinLines": [
+                "a(b[c]d)e"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "text_mismatch_position",
+              "stdinLines": [
+                "foo(bar[1)]"
+              ],
+              "expectedStdout": "NO 10"
+            },
+            {
+              "name": "text_unclosed",
+              "stdinLines": [
+                "x = (1 + 2"
+              ],
+              "expectedStdout": "NO 5"
+            },
+            {
+              "name": "expression_ok",
+              "stdinLines": [
+                "(1+2)*[3-{4/5}]"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "no_brackets",
+              "stdinLines": [
+                "hello"
+              ],
+              "expectedStdout": "OK"
+            },
+            {
+              "name": "text_extra_close",
+              "stdinLines": [
+                "f(x))"
+              ],
+              "expectedStdout": "NO 5"
+            }
+          ]
+        }
+      ]
+    },
+    "projectStructureJson": {
+      "rootPath": "/workspace",
+      "entryFilePath": "main.py",
+      "files": [
+        {
+          "filePath": "main.py",
+          "language": "python",
+          "readonly": false,
+          "content": "def main():\n    line = input().strip()\n\n    # 괄호가 올바른지 검사해 결과를 한 줄로 출력하세요.\n    pass\n\n\nif __name__ == \"__main__\":\n    main()\n"
+        },
+        {
+          "filePath": "README.md",
+          "language": "markdown",
+          "readonly": true,
+          "content": "# 괄호 검사기\n\n표준 입력은 한 줄입니다. 괄호 `()`, `[]`, `{}`가 올바르게 짝지어졌는지 검사합니다.\n\n- 올바르면 `OK`\n- 틀리면 `NO` (4단계부터는 `NO 위치`)\n\n위치는 1부터 셉니다. 짝이 맞지 않는 닫는 괄호가 있으면 그 중 첫 번째 위치, 없으면 닫히지 않은 여는 괄호 중 첫 번째 위치입니다.\n\n5단계부터는 괄호가 아닌 문자가 섞여 있을 수 있고, 위치에는 모든 문자가 포함됩니다.\n"
+        }
+      ]
+    }
   }
 ]

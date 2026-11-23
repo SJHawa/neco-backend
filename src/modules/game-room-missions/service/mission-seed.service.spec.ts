@@ -54,8 +54,8 @@ describe('MissionSeedService', () => {
 
     expect(counts).toEqual({
       dockerImages: 1,
-      missionTemplates: 10,
-      missionTemplateSteps: 41,
+      missionTemplates: 11,
+      missionTemplateSteps: 46,
     });
     expect(dockerImageRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,6 +143,22 @@ describe('MissionSeedService', () => {
       }),
     );
     expect(primeCheckerSteps?.map((step) => step.stepOrder)).toEqual([1, 2, 3, 4, 5]);
+
+    const bracketChecker = missionTemplateRepository.save.mock.calls
+      .map(([template]) => template as MissionTemplateEntity)
+      .find((template) => template.id === 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2');
+    const bracketCheckerSteps = bracketChecker?.judgePolicyJson.steps as
+      | Array<{ stepOrder: number; testCases: Array<{ expectedStdout: string }> }>
+      | undefined;
+
+    expect(bracketChecker).toEqual(
+      expect.objectContaining({
+        title: '괄호 검사기',
+        difficulty: 'HARD',
+        dockerImageId: '11111111-1111-4111-8111-111111111111',
+      }),
+    );
+    expect(bracketCheckerSteps?.map((step) => step.stepOrder)).toEqual([1, 2, 3, 4, 5]);
     expect(
       primeCheckerSteps?.every((step) =>
         step.testCases.every((testCase) => testCase.expectedStdout.length > 0),

@@ -507,5 +507,125 @@
       ]
     },
     "hintText": "int() 변환을 try/except ValueError로 감싸고, 명령 이름 검사를 숫자 변환보다 먼저 하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff011",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "stepOrder": 1,
+    "title": "괄호 균형 검사",
+    "description": "`(`와 `)`만 검사해 올바른 괄호열이면 `OK`, 아니면 `NO`를 출력합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "여는 괄호와 닫는 괄호의 개수가 같고 닫는 괄호가 먼저 나오지 않으면 `OK`, 아니면 `NO`를 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 1
+      }
+    },
+    "successCriteriaJson": {
+      "requiredFeatures": [
+        "paren"
+      ]
+    },
+    "hintText": "여는 괄호는 +1, 닫는 괄호는 -1을 하고, 값이 0보다 작아지는 순간 NO로 처리하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff012",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "stepOrder": 2,
+    "title": "세 종류 괄호",
+    "description": "`[]`와 `{}`를 추가해 `()`, `[]`, `{}` 세 종류를 검사합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "세 종류 괄호가 각각 짝이 맞으면 `OK`, 아니면 `NO`를 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 2
+      }
+    },
+    "successCriteriaJson": {
+      "requiredFeatures": [
+        "paren",
+        "kinds"
+      ]
+    },
+    "hintText": "괄호 종류마다 개수를 따로 세고, 닫는 괄호가 먼저 나오면 NO로 처리하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff013",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "stepOrder": 3,
+    "title": "중첩과 순서",
+    "description": "괄호가 올바른 순서로 열리고 닫히는지 스택으로 검증합니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "`([)]`처럼 종류별 개수는 맞아도 닫는 순서가 틀리면 `NO`를 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 3
+      }
+    },
+    "successCriteriaJson": {
+      "requiredFeatures": [
+        "paren",
+        "kinds",
+        "stack"
+      ]
+    },
+    "hintText": "여는 괄호는 스택에 넣고, 닫는 괄호가 나오면 스택 맨 위의 괄호와 짝이 맞는지 확인하세요."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff014",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "stepOrder": 4,
+    "title": "어긋난 위치",
+    "description": "틀린 경우 `NO 위치`로 처음 어긋난 위치를 함께 출력합니다. 위치는 1부터 셉니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "짝이 맞지 않는 닫는 괄호가 있으면 그 중 첫 번째 위치를, 없으면 닫히지 않은 여는 괄호 중 첫 번째 위치를 `NO 위치`로 출력합니다. 올바르면 `OK`를 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 4
+      }
+    },
+    "successCriteriaJson": {
+      "requiredFeatures": [
+        "paren",
+        "kinds",
+        "stack",
+        "position"
+      ]
+    },
+    "hintText": "스택에 괄호와 위치를 함께 저장하세요. 닫는 괄호가 맞지 않으면 그 위치를, 끝났는데 스택이 남아 있으면 스택 맨 아래의 위치를 출력합니다."
+  },
+  {
+    "id": "ffffffff-ffff-4fff-8fff-fffffffff015",
+    "missionTemplateId": "eeeeeeee-eeee-4eee-8eee-eeeeeeeeeee2",
+    "stepOrder": 5,
+    "title": "괄호 외 문자",
+    "description": "괄호가 아닌 문자가 섞인 입력을 처리합니다. 위치는 공백과 문자를 포함한 원래 문자열 기준입니다.",
+    "targetFilePath": "main.py",
+    "successCriteria": "괄호가 아닌 문자는 무시하고 판정하며, 오류 위치는 원래 문자열에서 1부터 센 위치로 출력합니다.",
+    "judgePolicyJson": {
+      "judgeType": "PUBLIC_TEST_CASES",
+      "caseBundleRef": {
+        "source": "mission_templates.judge_policy_json",
+        "stepOrder": 5
+      }
+    },
+    "successCriteriaJson": {
+      "requiredFeatures": [
+        "paren",
+        "kinds",
+        "stack",
+        "position",
+        "text"
+      ]
+    },
+    "hintText": "괄호가 아닌 문자는 건너뛰되, enumerate의 위치 값은 그대로 늘어나게 두세요."
   }
 ]
