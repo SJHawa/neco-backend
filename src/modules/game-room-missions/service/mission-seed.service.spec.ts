@@ -55,7 +55,7 @@ describe('MissionSeedService', () => {
     expect(counts).toEqual({
       dockerImages: 1,
       missionTemplates: 11,
-      missionTemplateSteps: 46,
+      missionTemplateSteps: 49,
     });
     expect(dockerImageRepository.save).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -143,6 +143,11 @@ describe('MissionSeedService', () => {
       }),
     );
     expect(primeCheckerSteps?.map((step) => step.stepOrder)).toEqual([1, 2, 3, 4, 5]);
+    expect(
+      primeCheckerSteps?.every((step) =>
+        step.testCases.every((testCase) => testCase.expectedStdout.length > 0),
+      ),
+    ).toBe(true);
 
     const bracketChecker = missionTemplateRepository.save.mock.calls
       .map(([template]) => template as MissionTemplateEntity)
@@ -159,11 +164,6 @@ describe('MissionSeedService', () => {
       }),
     );
     expect(bracketCheckerSteps?.map((step) => step.stepOrder)).toEqual([1, 2, 3, 4, 5]);
-    expect(
-      primeCheckerSteps?.every((step) =>
-        step.testCases.every((testCase) => testCase.expectedStdout.length > 0),
-      ),
-    ).toBe(true);
     const savedTemplates = missionTemplateRepository.save.mock.calls.map(
       ([template]) => template as MissionTemplateEntity,
     );
@@ -188,7 +188,7 @@ describe('MissionSeedService', () => {
         testCases: Array<{ name: string }>;
       }>)[5]?.testCases.map((testCase) => testCase.name),
     ).toContain('invalid_commands');
-    expect(missionTemplateStepRepository.save).toHaveBeenCalledTimes(36);
+    expect(missionTemplateStepRepository.save).toHaveBeenCalledTimes(49);
   });
 
   it('does not rewrite existing mission step primary keys on reseed', async () => {
